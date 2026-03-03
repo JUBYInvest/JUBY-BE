@@ -24,7 +24,7 @@ public class TokenController {
     @Operation(summary = "KIS AccessToken 발급", description = "한국투자증권 서버에 요청하여 Access Token을 발급받아 반환합니다.")
     @GetMapping
     public ResponseEntity<TokenDto.TokenResponse> getToken(){
-        TokenDto.TokenResponse accessToken = tokenService.getAccessToken();
-        return ResponseEntity.ok(accessToken);
+        TokenDto.TokenResponse response = tokenService.getAccessToken();
+        return ResponseEntity.ok(response);
     }
 }
