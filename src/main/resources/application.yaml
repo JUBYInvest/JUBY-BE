@@ -2,7 +2,3 @@ spring:
   application:
     name: invest
 
-kis:
-  base-url: "https://openapivts.koreainvestment.com:29443"
-  app-key: "PSHvhWAXw5zKShIkvLmLHr9Ay99Mv4flKABd"
-  app-secret: "Y/jq+MTBjDfVPdY88QvGrpU+oYGTx6R5dLXnN3kDCHSLmsQH87xbJFb5VoMNuNZ+a4JE5f/X+o3IxCKEmbj4daHosCDY6IRkbv4le5XkO/Agpo0TB3vSss/QOJvbSPPbrZdiI8cELjEYiaPxdMkme4Z5fHK4F/5T44fzSEefNWCN4c/85rk="
