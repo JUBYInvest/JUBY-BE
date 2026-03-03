@@ -37,4 +37,4 @@ out/
 .vscode/
 
 ### 설정 파일 보안
-/src/main/resources/application.yaml
+src/main/resources/application.yaml
