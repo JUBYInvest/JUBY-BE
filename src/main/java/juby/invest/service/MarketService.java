@@ -14,7 +14,7 @@ public class MarketService {
 
     @Value("${kis.app-secret}") String appSecret;
     @Value("${kis.app-key}") String appKey;
-
+    @Value("/uapi/domestic-stock/v1/quotations/inquire-price") String path; // 주식 시세 조회 엔드 API
     private final RestClient investRestClient;
     private final TokenService tokenService;
 
@@ -25,7 +25,7 @@ public class MarketService {
 
         CurrentPriceDto response = investRestClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/uapi/domestic-stock/v1/quotations/inquire-price")
+                        .path(path)
                         .queryParam("FID_COND_MRKT_DIV_CODE", "J")
                         .queryParam("FID_INPUT_ISCD", stockCode) // 입력 종목 코드
                         .build())
