@@ -12,8 +12,8 @@ import org.springframework.web.client.RestClient;
 @RequiredArgsConstructor
 public class MarketService {
 
-    @Value("${kis.app-secret}") String appSecret;
-    @Value("${kis.app-key}") String appKey;
+    @Value("${kis.mock.app-secret}") String appSecret;
+    @Value("${kis.mock.app-key}") String appKey;
     @Value("/uapi/domestic-stock/v1/quotations/inquire-price") String path; // 주식 시세 조회 엔드 API
     private final RestClient investRestClient;
     private final TokenService tokenService;

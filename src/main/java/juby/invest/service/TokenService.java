@@ -18,8 +18,8 @@ public class TokenService {
 
     private final RestClient investRestClient;
 
-    @Value("${kis.app-key}") private String appKey;
-    @Value("${kis.app-secret}") private String appSecret;
+    @Value("${kis.mock.app-key}") private String appKey;
+    @Value("${kis.mock.app-secret}") private String appSecret;
 
     // accessToken 캐싱을 위함.
     private String cachedToken;
