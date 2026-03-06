@@ -14,18 +14,18 @@ public class MarketService {
 
     @Value("${kis.mock.app-secret}") String appSecret;
     @Value("${kis.mock.app-key}") String appKey;
-    @Value("/uapi/domestic-stock/v1/quotations/inquire-price") String path; // 주식 시세 조회 엔드 API
+
     private final RestClient investRestClient;
     private final TokenService tokenService;
 
     public CurrentPriceDto.Output getCurrentPrice(String stockCode){
 
         // accessToken 발급 과정
-        String accessToken = tokenService.getAccessToken().accessToken();
+        String accessToken = tokenService.getMockAccessToken().accessToken();
 
         CurrentPriceDto response = investRestClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path(path)
+                        .path("/uapi/domestic-stock/v1/quotations/inquire-price")
                         .queryParam("FID_COND_MRKT_DIV_CODE", "J")
                         .queryParam("FID_INPUT_ISCD", stockCode) // 입력 종목 코드
                         .build())
@@ -41,6 +41,7 @@ public class MarketService {
             throw new RuntimeException("현재가 조회 실패");
         }
 
+        log.info("현재가 조회 성공: response.output 반환 {}", response.output());
         return new CurrentPriceDto.Output(response.output().currentPrice(), response.output().compareYesterday());
     }
 }
