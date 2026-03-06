@@ -31,7 +31,7 @@ git pull origin dev
 ### b) After dev branch pushed into local, go to working branch and merge
 ```
 git checkout feat/pastInvest
-get merge dev
+git merge dev
 ```
 ※If you have saved code, restore it
 ```
