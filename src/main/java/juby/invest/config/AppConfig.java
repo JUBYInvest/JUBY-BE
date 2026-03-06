@@ -8,13 +8,20 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class AppConfig {
 
-    @Value("${kis.base-url}") private String investUrl;
+    @Value("${kis.mock.base-url}") private String mockInvestUrl;
+    @Value("${kis.real.base-url}") private String realInvestUrl;
 
     @Bean
     public RestClient investRestClient(){
         return RestClient.builder()
-                .baseUrl(investUrl)
+                .baseUrl(mockInvestUrl)
                 .build();
     }
 
+    @Bean
+    public RestClient realInvestRestClient(){
+        return RestClient.builder()
+                .baseUrl(realInvestUrl)
+                .build();
+    }
 }

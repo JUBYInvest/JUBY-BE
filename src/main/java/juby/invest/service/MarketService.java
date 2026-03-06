@@ -12,8 +12,8 @@ import org.springframework.web.client.RestClient;
 @RequiredArgsConstructor
 public class MarketService {
 
-    @Value("${kis.app-secret}") String appSecret;
-    @Value("${kis.app-key}") String appKey;
+    @Value("${kis.mock.app-secret}") String appSecret;
+    @Value("${kis.mock.app-key}") String appKey;
 
     private final RestClient investRestClient;
     private final TokenService tokenService;
@@ -21,7 +21,7 @@ public class MarketService {
     public CurrentPriceDto.Output getCurrentPrice(String stockCode){
 
         // accessToken 발급 과정
-        String accessToken = tokenService.getAccessToken().accessToken();
+        String accessToken = tokenService.getMockAccessToken().accessToken();
 
         CurrentPriceDto response = investRestClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -41,6 +41,7 @@ public class MarketService {
             throw new RuntimeException("현재가 조회 실패");
         }
 
+        log.info("현재가 조회 성공: response.output 반환 {}", response.output());
         return new CurrentPriceDto.Output(response.output().currentPrice(), response.output().compareYesterday());
     }
 }
