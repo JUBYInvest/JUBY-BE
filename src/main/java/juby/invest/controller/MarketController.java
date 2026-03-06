@@ -27,7 +27,7 @@ public class MarketController {
     private final MarketService marketService;
     private final TradingVolumeService tradingVolumeService;
 
-    @Operation(summary = "주식 현재가 및 전일대비 조회", description = "종목 코드를 입력 받아 현재가와 전일대비를 반환한다.")
+    @Operation(summary = "주식 현재가 및 전일대비 증감 조회", description = "종목 코드를 입력 받아 현재가와 전일대비 증감액을 반환한다.")
     @GetMapping("/price")
     public ResponseEntity<CurrentPriceDto.Output> getPrice(@Parameter(description = "종목 코드")
             @RequestParam String code){
