@@ -11,6 +11,7 @@ public class AppConfig {
     @Value("${kis.mock.base-url}") private String mockInvestUrl;
     @Value("${kis.real.base-url}") private String realInvestUrl;
 
+    // 모의 Domain
     @Bean
     public RestClient investRestClient(){
         return RestClient.builder()
@@ -18,6 +19,7 @@ public class AppConfig {
                 .build();
     }
 
+    // 실전 Domain
     @Bean
     public RestClient realInvestRestClient(){
         return RestClient.builder()
