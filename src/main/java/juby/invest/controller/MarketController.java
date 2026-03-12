@@ -4,7 +4,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import juby.invest.dto.CurrentPriceDto;
+import juby.invest.dto.DailyStockPriceDto;
 import juby.invest.dto.TradingVolumeDto;
+import juby.invest.service.DailyStockPriceService;
 import juby.invest.service.MarketService;
 import juby.invest.service.TradingVolumeService;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Tag(name = "주식 조회 API", description = "주식의 현재 정보를 조회한다.")
+@Tag(name = "주식 조회 API", description = "주식의 각종 정보를 조회한다.")
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -26,6 +28,7 @@ public class MarketController {
 
     private final MarketService marketService;
     private final TradingVolumeService tradingVolumeService;
+    private final DailyStockPriceService dailyStockPriceService;
 
     @Operation(summary = "주식 현재가 및 전일대비 증감 조회", description = "종목 코드를 입력 받아 현재가와 전일대비 증감액을 반환한다.")
     @GetMapping("/price")
@@ -40,5 +43,13 @@ public class MarketController {
     public ResponseEntity<List<TradingVolumeDto.Output>> getTradingVolume(){
         List<TradingVolumeDto.Output> response = tradingVolumeService.getTradingVolume();
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "주식현재가 일자별 조회", description = "종목의 30일 OHLCV정보를 조회한다.")
+    @GetMapping("/daily-stock")
+    public ResponseEntity<List<DailyStockPriceDto.Output>> getDailyStockPrice(@Parameter(description = "종목 코드")
+            @RequestParam String stockCode){
+        List<DailyStockPriceDto.Output> dailyStockPrice = dailyStockPriceService.getDailyStockPrice(stockCode);
+        return ResponseEntity.ok(dailyStockPrice);
     }
 }
