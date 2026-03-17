@@ -3,12 +3,8 @@ package juby.invest.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import juby.invest.dto.CurrentPriceDto;
-import juby.invest.dto.DailyStockPriceDto;
-import juby.invest.dto.TradingVolumeDto;
-import juby.invest.service.DailyStockPriceService;
-import juby.invest.service.MarketService;
-import juby.invest.service.TradingVolumeService;
+import juby.invest.dto.*;
+import juby.invest.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +25,8 @@ public class MarketController {
     private final MarketService marketService;
     private final TradingVolumeService tradingVolumeService;
     private final DailyStockPriceService dailyStockPriceService;
+    private final PeriodStockPriceService periodStockPriceService;
+    private final CheckHolidayService checkHolidayService;
 
     @Operation(summary = "주식 현재가 및 전일대비 증감 조회", description = "종목 코드를 입력 받아 현재가와 전일대비 증감액을 반환한다.")
     @GetMapping("/price")
@@ -51,5 +49,24 @@ public class MarketController {
             @RequestParam String stockCode){
         List<DailyStockPriceDto.Output> dailyStockPrice = dailyStockPriceService.getDailyStockPrice(stockCode);
         return ResponseEntity.ok(dailyStockPrice);
+    }
+
+    @Operation(summary = "국내주식기간별시세조회API", description = "해당 종목의 기간별(최대 100개) 시세를 조회한다.")
+    @GetMapping("/daily_itemchartprice")
+    public ResponseEntity<List<PeriodStockPriceDto.Output>> getPeriodStockPrice(
+            @Parameter(description = "종목코드(005930)") @RequestParam("stockcode") String stockCode,
+            @Parameter(description = "시작날짜(20250303)") @RequestParam("startdate") String startDate,
+            @Parameter(description = "종료날짜(20250310") @RequestParam("enddate") String endDate){
+        List<PeriodStockPriceDto.Output> periodStockPrice = periodStockPriceService.getPeriodStockPrice(stockCode, startDate, endDate);
+        return ResponseEntity.ok(periodStockPrice);
+    }
+
+    @Operation(summary = "국내휴장일조회API", description = "영업일,거래일 여부ㄹ를 조회한다.")
+    @GetMapping("/holiday")
+    public ResponseEntity<List<HolidayDto.Output>> checkHolidayList(
+            @Parameter(description = "기준일자") @RequestParam("basedate") String baseDate
+    ){
+        List<HolidayDto.Output> holidayList = checkHolidayService.getHolidayList(baseDate);
+        return ResponseEntity.ok(holidayList);
     }
 }
