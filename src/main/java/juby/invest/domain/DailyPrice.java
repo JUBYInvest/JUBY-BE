@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 @Entity
+@Getter
 @Table(name = "daily_price")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class DailyPrice {
