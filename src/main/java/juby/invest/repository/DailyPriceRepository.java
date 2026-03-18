@@ -9,7 +9,5 @@ import java.time.LocalDate;
 
 @Repository
 public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
-    double findByDateBefore(LocalDate dateBefore);
-
-    boolean existsByStockAndDate(Stock stock,LocalDate date);
+    boolean existsByStock(Stock stock);
 }

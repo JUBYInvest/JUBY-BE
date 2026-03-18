@@ -1,4 +1,4 @@
-package juby.invest.initiate;
+package juby.invest.initiate.service;
 
 import jakarta.transaction.Transactional;
 import juby.invest.domain.DailyPrice;

@@ -1,34 +1,28 @@
-package juby.invest.initiate;
+package juby.invest.initiate.loader;
 
 import jakarta.transaction.Transactional;
 import juby.invest.domain.Stock;
 import juby.invest.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Slf4j
-//@Component
+@Component
 @RequiredArgsConstructor
 public class StockLoader {
 
     private final StockRepository stockRepository;
 
     /***
-     * 함수명: initStockData()
-     * 기능: 국내 시총 상위 100개 기업에 대해서 (종목코드, 종목번호)를 미리 DB에 저장하기 위한 Initial 작업이다. (완료)
-     *      DB에 INSERT가 완료되었기에, Component를 주석 처리해주었다.
-     *       추후 기업명 혹은 코드가 바뀌면 수정해주어야 한다.
+     * 함수명: initStockCodeAndStockName()
+     * 기능: 국내 시총 상위 100개 기업에 대해서 (종목코드, 종목번호)를 미리 DB에 INSERT 하기 위한 Initial 작업.
      */
-
-    @EventListener(ApplicationReadyEvent.class) // 서버가 켜지면 그 즉시 자동으로 실행된다.
     @Transactional
-    public void initStockData(){
-        if (stockRepository.count() <100){
+    public void initStockCodeAndStockName(){
+        if (stockRepository.count() > 0){
             log.info("이미 국내 시총 100위 기업 저장 완료.");
             return;
         }
