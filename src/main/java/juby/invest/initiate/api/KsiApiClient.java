@@ -1,4 +1,4 @@
-package juby.invest.initiate;
+package juby.invest.initiate.api;
 
 import juby.invest.dto.PeriodStockPriceDto;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class KsiApiClient {
     @Value("${kis.mock.app-secret}") String appSecret;
 
     /***
-     * 함수 기능: 국내주식기간별시세 API 호출/응답으로 받은 Output List를 savePeriodStockPrice()에 넘겨준다.
+     * 함수 기능: 국내주식기간별시세 API
      * @param stockCode 주식코드(6자리)
      * @param startDate 조회시작날짜
      * @param endDate 조회마지막날짜
