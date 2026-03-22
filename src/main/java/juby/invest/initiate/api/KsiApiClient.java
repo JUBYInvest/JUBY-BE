@@ -1,6 +1,7 @@
 package juby.invest.initiate.api;
 
 import juby.invest.dto.PeriodStockPriceDto;
+import juby.invest.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +16,7 @@ import java.util.List;
 public class KsiApiClient {
 
     private final RestClient investRestClient;
+    private final TokenService tokenService;
 
     @Value("${kis.mock.app-key}") String appKey;
     @Value("${kis.mock.app-secret}") String appSecret;
@@ -26,7 +28,9 @@ public class KsiApiClient {
      * @param endDate 조회마지막날짜
      * @return List<PeriodStockPriceDto.Output> 해당 주식 코드의 일자별 OHLVC가 담긴다.
      */
-    public List<PeriodStockPriceDto.Output> getPeriodStockPrice(String stockCode, String startDate, String endDate, String accessToken){
+    public List<PeriodStockPriceDto.Output> getPeriodStockPrice(String stockCode, String startDate, String endDate){
+
+        String accessToken = tokenService.getMockAccessToken().accessToken();
 
         PeriodStockPriceDto response = investRestClient.get()
                 .uri(uriBuilder -> uriBuilder
