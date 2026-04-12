@@ -21,7 +21,6 @@ public class StockPriceLoader {
     private final StockRepository stockRepository;
     private final KsiApiClient ksiApiClient;
     private final PeriodStockPriceLoaderService periodStockPriceLoaderService;
-    private final TokenService tokenService ;
     private static final List<String> dateStartList = List.of("20250101", "20250401", "20250701", "20251001", "20260101");
     private static final List<String> dateEndList = List.of("20250331", "20250630", "20250930", "20251231", "20260228");
 
@@ -31,14 +30,12 @@ public class StockPriceLoader {
     public void getPeriodByStockOHLVC(){
         List<String> stockCodesList = stockRepository.findAllStockCodes();
 
-        String accessToken = tokenService.getMockAccessToken().accessToken();
-
         for (String stockCode : stockCodesList){
             List<PeriodStockPriceDto.Output> combinedOutputList = new ArrayList<>();
 
             for (int i = 0; i < dateStartList.size(); i++){
                 try {
-                    List<PeriodStockPriceDto.Output> outputList = ksiApiClient.getPeriodStockPrice(stockCode, dateStartList.get(i), dateEndList.get(i), accessToken);
+                    List<PeriodStockPriceDto.Output> outputList = ksiApiClient.getPeriodStockPrice(stockCode, dateStartList.get(i), dateEndList.get(i));
                     combinedOutputList.addAll(outputList);
                     Thread.sleep(1200);
                 } catch (Exception e){
