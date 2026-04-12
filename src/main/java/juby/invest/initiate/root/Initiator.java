@@ -16,7 +16,7 @@ public class Initiator {
     private final StockLoader stockLoader;
     private final StockPriceLoader stockPriceLoader;
 
-    @EventListener(ApplicationReadyEvent.class)
+    // @EventListener(ApplicationReadyEvent.class)
     public void initiate(){
 
         try {
