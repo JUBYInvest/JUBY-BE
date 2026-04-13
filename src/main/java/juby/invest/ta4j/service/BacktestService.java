@@ -42,8 +42,7 @@ public class BacktestService {
         BarSeries series = barSeriesConverter.convert(dailyPriceList, stockCode);
 
         // 전략 구축 및 실행
-        BacktestStrategy strategyFound = strategyFactory.getStrategy(strategyNum); // 인터페이스 반환
-        Strategy strategy = strategyFound.strategy(series); // 실제 구현체 반환 (ex SMA)
+        Strategy strategy = strategyFactory.getStrategy(strategyNum).strategy(series);
         BarSeriesManager manager = new BarSeriesManager(series);
         TradingRecord record = manager.run(strategy);
 

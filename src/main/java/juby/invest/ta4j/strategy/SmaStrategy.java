@@ -1,6 +1,7 @@
 package juby.invest.ta4j.strategy;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseStrategy;
@@ -13,6 +14,7 @@ import org.ta4j.core.rules.CrossedUpIndicatorRule;
 
 @Slf4j
 @Component
+@Order(1)
 public class SmaStrategy implements BacktestStrategy{
 
     /***

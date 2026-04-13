@@ -23,7 +23,7 @@ public class StrategyFactory {
     public StrategyFactory(List<BacktestStrategy> strategyList){
         for (BacktestStrategy strategy : strategyList) {
             strategyMap.put(++index, strategy);
-            log.info("strategyMap에 {} 주입.", index);
+            log.info("strategyMap에 {} 주입. {}", index, strategy);
         }
     }
 
