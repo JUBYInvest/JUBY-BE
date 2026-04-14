@@ -42,13 +42,13 @@ public class BacktestService {
         BarSeries series = barSeriesConverter.convert(dailyPriceList, stockCode);
 
         // 전략 구축 및 실행
-        BacktestStrategy strategyFound = strategyFactory.getStrategy(strategyNum); // 인터페이스 반환
-        Strategy strategy = strategyFound.strategy(series); // 실제 구현체 반환 (ex SMA)
+        Strategy strategy = strategyFactory.getStrategy(strategyNum).strategy(series);
         BarSeriesManager manager = new BarSeriesManager(series);
         TradingRecord record = manager.run(strategy);
 
         System.out.println("체결된 포지션: " + record.getPositionCount());
-
+        System.out.println("포지션 entry 한 날짜" + record.getLastEntry());
+        System.out.println("포지션 exit 한 날짜" + record.getLastExit());
         // 결과 지표 분석
         List<BigDecimal> analysisList = analysisCriterionConverter.converter(series, record);
 
