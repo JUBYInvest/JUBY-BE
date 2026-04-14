@@ -8,6 +8,7 @@ import org.ta4j.core.BaseStrategy;
 import org.ta4j.core.Rule;
 import org.ta4j.core.Strategy;
 import org.ta4j.core.indicators.averages.SMAIndicator;
+import org.ta4j.core.indicators.bollinger.BollingerBandsUpperIndicator;
 import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 import org.ta4j.core.rules.CrossedDownIndicatorRule;
 import org.ta4j.core.rules.CrossedUpIndicatorRule;
@@ -31,7 +32,7 @@ public class SmaStrategy implements BacktestStrategy{
 
         Rule breakout = new CrossedUpIndicatorRule(shortSma, longSma);
         Rule pullback = new CrossedDownIndicatorRule(shortSma, longSma);
-
+        
         log.info("SMA 교차 전략 실행");
         return new BaseStrategy("SMA 교차 전략", breakout, pullback);
     }
