@@ -1,4 +1,4 @@
-package juby.invest.domain;
+package juby.invest.stock.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;

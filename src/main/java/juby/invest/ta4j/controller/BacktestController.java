@@ -24,10 +24,9 @@ public class BacktestController {
     @Operation(summary = "백테스트 실행", description = "종목 코드와 전략 번호를 전달해주면 SMA 전략을 실행한다")
     @GetMapping("/convert")
     public ResponseEntity<BacktestResponseDto> convert(
-            @Parameter(description = "종목 코드")
-            @RequestParam("stockcode") String stockCode,
-            @Parameter(description = "전략 이름 (smaStrategy)")
-            @RequestParam("strategy_name") String strategyName){
+            @Parameter(description = "종목 코드") @RequestParam("stockcode") String stockCode,
+            @Parameter(description = "전략 이름 (smaStrategy)") @RequestParam("strategy_name") String strategyName){
+
         BacktestResponseDto response = backtestService.runStrategy(stockCode, strategyName);
 
         return ResponseEntity.ok(response);

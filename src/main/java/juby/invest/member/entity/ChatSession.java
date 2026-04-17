@@ -1,24 +1,24 @@
 package juby.invest.member.entity;
 
 import jakarta.persistence.*;
-import juby.invest.domain.Stock;
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "chat_session")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Data
-@NoArgsConstructor
-public class MemberStock {
+public class ChatSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock")
-    private Stock stock;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member")
+    @JoinColumn(name = "member_id")
     private Member member;
+
+    @Column(name = "title")
+    private String title;
 }

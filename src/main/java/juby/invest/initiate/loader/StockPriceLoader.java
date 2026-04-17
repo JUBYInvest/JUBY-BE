@@ -1,11 +1,9 @@
 package juby.invest.initiate.loader;
 
-import juby.invest.dto.PeriodStockPriceDto;
-import juby.invest.initiate.service.Days30StockPriceLoaderService;
+import juby.invest.api.market.dto.PeriodStockPriceDto;
 import juby.invest.initiate.api.KsiApiClient;
 import juby.invest.initiate.service.PeriodStockPriceLoaderService;
-import juby.invest.repository.StockRepository;
-import juby.invest.service.TokenService;
+import juby.invest.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

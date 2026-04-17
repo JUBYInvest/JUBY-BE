@@ -1,11 +1,11 @@
 package juby.invest.initiate.service;
 
 import jakarta.transaction.Transactional;
-import juby.invest.domain.DailyPrice;
-import juby.invest.domain.Stock;
-import juby.invest.dto.DailyStockPriceDto;
-import juby.invest.repository.DailyPriceRepository;
-import juby.invest.repository.StockRepository;
+import juby.invest.stock.entity.DailyPrice;
+import juby.invest.stock.entity.Stock;
+import juby.invest.api.market.dto.DailyStockPriceDto;
+import juby.invest.stock.repository.DailyPriceRepository;
+import juby.invest.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
