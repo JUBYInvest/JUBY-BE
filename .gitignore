@@ -38,3 +38,4 @@ out/
 
 ### 설정 파일 보안
 src/main/resources/application.yaml
+.env
