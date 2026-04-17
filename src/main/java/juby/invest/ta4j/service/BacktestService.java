@@ -1,8 +1,8 @@
 package juby.invest.ta4j.service;
 
 import jakarta.transaction.Transactional;
-import juby.invest.domain.DailyPrice;
-import juby.invest.repository.DailyPriceRepository;
+import juby.invest.stock.entity.DailyPrice;
+import juby.invest.stock.repository.DailyPriceRepository;
 import juby.invest.ta4j.converter.AnalysisCriterionConverter;
 import juby.invest.ta4j.converter.BarSeriesConverter;
 import juby.invest.ta4j.dto.BacktestResponseDto;

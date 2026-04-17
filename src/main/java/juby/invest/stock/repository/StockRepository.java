@@ -1,6 +1,6 @@
-package juby.invest.repository;
+package juby.invest.stock.repository;
 
-import juby.invest.domain.Stock;
+import juby.invest.stock.entity.Stock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;

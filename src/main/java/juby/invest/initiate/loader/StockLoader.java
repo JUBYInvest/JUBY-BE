@@ -1,8 +1,8 @@
 package juby.invest.initiate.loader;
 
 import jakarta.transaction.Transactional;
-import juby.invest.domain.Stock;
-import juby.invest.repository.StockRepository;
+import juby.invest.stock.entity.Stock;
+import juby.invest.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

@@ -1,6 +1,6 @@
-package juby.invest.service;
+package juby.invest.api.token.service;
 
-import juby.invest.dto.TokenDto;
+import juby.invest.api.token.dto.TokenDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

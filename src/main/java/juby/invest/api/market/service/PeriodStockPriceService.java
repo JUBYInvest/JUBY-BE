@@ -1,6 +1,7 @@
-package juby.invest.service;
+package juby.invest.api.market.service;
 
-import juby.invest.dto.PeriodStockPriceDto;
+import juby.invest.api.market.dto.PeriodStockPriceDto;
+import juby.invest.api.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

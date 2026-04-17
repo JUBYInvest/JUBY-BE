@@ -1,13 +1,10 @@
-package juby.invest.domain;
+package juby.invest.stock.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
-@Getter
+@Data
 @Table(name = "stock")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Stock {
