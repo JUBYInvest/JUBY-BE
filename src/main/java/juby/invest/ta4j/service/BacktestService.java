@@ -7,8 +7,6 @@ import juby.invest.ta4j.converter.AnalysisCriterionConverter;
 import juby.invest.ta4j.converter.BarSeriesConverter;
 import juby.invest.ta4j.dto.BacktestResponseDto;
 import juby.invest.ta4j.strategy.BacktestStrategy;
-import juby.invest.ta4j.strategy.SmaStrategy;
-import juby.invest.ta4j.strategy.StrategyFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,6 +17,7 @@ import org.ta4j.core.backtest.BarSeriesManager;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -27,22 +26,22 @@ public class BacktestService {
 
     private final BarSeriesConverter barSeriesConverter;
     private final DailyPriceRepository dailyPriceRepository;
-    private final StrategyFactory strategyFactory;
     private final AnalysisCriterionConverter analysisCriterionConverter;
+    private final Map<String, BacktestStrategy> strategyMap;
 
     /***
      * 함수: 종목코드와 전략 이름을 바탕으로 전략을 실행한다.
      * @param stockCode 종목 코드 (ex 005930)
      */
     @Transactional
-    public BacktestResponseDto runStrategy(String stockCode, int strategyNum){
+    public BacktestResponseDto runStrategy(String stockCode, String strategyName){
 
         // List<DailyPrice -> ta4j의 Barseries 변환
         List<DailyPrice> dailyPriceList = dailyPriceRepository.findByStockStockCodeOrderByDateAsc(stockCode);
         BarSeries series = barSeriesConverter.convert(dailyPriceList, stockCode);
 
         // 전략 구축 및 실행
-        Strategy strategy = strategyFactory.getStrategy(strategyNum).strategy(series);
+        Strategy strategy = strategyMap.get(strategyName).strategy(series);
         BarSeriesManager manager = new BarSeriesManager(series);
         TradingRecord record = manager.run(strategy);
 
