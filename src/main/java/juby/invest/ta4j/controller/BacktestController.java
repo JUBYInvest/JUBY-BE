@@ -26,9 +26,9 @@ public class BacktestController {
     public ResponseEntity<BacktestResponseDto> convert(
             @Parameter(description = "종목 코드")
             @RequestParam("stockcode") String stockCode,
-            @Parameter(description = "전략 번호")
-            @RequestParam("strategy_num") int strategyNum){
-        BacktestResponseDto response = backtestService.runStrategy(stockCode, strategyNum);
+            @Parameter(description = "전략 이름 (smaStrategy)")
+            @RequestParam("strategy_name") String strategyName){
+        BacktestResponseDto response = backtestService.runStrategy(stockCode, strategyName);
 
         return ResponseEntity.ok(response);
     }

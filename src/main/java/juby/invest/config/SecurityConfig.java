@@ -30,7 +30,7 @@ public class SecurityConfig {
 
         http
                 .authorizeHttpRequests((auth) -> auth
-                        .requestMatchers("/", "/oauth2/**", "/login/**").permitAll()
+                        .requestMatchers("/", "/oauth2/**", "/login/**", "/backtest/**").permitAll()
                         .anyRequest().authenticated());
 
         return http.build();
