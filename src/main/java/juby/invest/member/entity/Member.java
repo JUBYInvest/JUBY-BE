@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import juby.invest.member.enums.InvestPersonality;
 import juby.invest.member.enums.Role;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -22,24 +23,33 @@ public class Member {
     private Long id;
 
     @Column(name = "email")
-    @NotNull
     private String email;
 
     @Column(name = "nickname")
-    @NotNull
     private String nickName;
 
     @Column(name = "profile_img")
-    @NotNull
     private String profileImg;
 
     @Column(name = "birth")
-    @NotNull
-    private LocalDate birth;
+    private String birth;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "invest_personality")
-    private Enum<InvestPersonality> investPersonality;
+    private InvestPersonality investPersonality;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role")
-    private Enum<Role> role;
+    private Role role;
+
+    @Builder
+
+    public Member(String email, String nickName, String profileImg, String birth, Role role) {
+        this.email = email;
+        this.nickName = nickName;
+        this.profileImg = profileImg;
+        this.birth = birth;
+        this.investPersonality = null;
+        this.role = role;
+    }
 }
