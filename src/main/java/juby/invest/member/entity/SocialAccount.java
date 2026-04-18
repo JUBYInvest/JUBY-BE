@@ -2,6 +2,7 @@ package juby.invest.member.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -24,4 +25,11 @@ public class SocialAccount {
 
     @Column(name = "provider_id")
     private String provider_id;
+
+    @Builder
+    public SocialAccount(Member member, String provider, String provider_id) {
+        this.member = member;
+        this.provider = provider;
+        this.provider_id = provider_id;
+    }
 }
