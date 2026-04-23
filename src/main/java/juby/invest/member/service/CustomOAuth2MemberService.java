@@ -1,6 +1,7 @@
 package juby.invest.member.service;
 
 import jakarta.transaction.Transactional;
+import juby.invest.member.dto.CustomOAuth2User;
 import juby.invest.member.dto.GoogleResponse;
 import juby.invest.member.dto.NaverResponse;
 import juby.invest.member.dto.OAuth2Response;
@@ -59,7 +60,7 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
         // 첫 회원 가입의 경우 (DB에 해당 회원의 이메일이 존재하지 않을 경우)
         if(member == null){
             log.info("첫 회원 가입 성공!");
-            Member newMember = memberRepository.save(Member.builder()
+            member = memberRepository.save(Member.builder()
                     .birth(oAuth2Response.getBirthday())
                     .email(oAuth2Response.getEmail())
                     .nickName(oAuth2Response.getName())
@@ -67,7 +68,7 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
                     .role(Role.USER)
                     .build());
             socialAccountRepository.save(SocialAccount.builder()
-                    .member(newMember)
+                    .member(member)
                     .provider(oAuth2Response.getProvider())
                     .provider_id(oAuth2Response.getProviderId())
                     .build());
@@ -87,6 +88,6 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
             }
         }
 
-        return oAuth2User;
+        return new CustomOAuth2User(member.getId(), member.getRole(), member.getNickName());
     }
 }
