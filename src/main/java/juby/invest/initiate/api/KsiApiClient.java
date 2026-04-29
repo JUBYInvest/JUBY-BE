@@ -1,4 +1,4 @@
-package juby.invest.global.initiate.api;
+package juby.invest.initiate.api;
 
 import juby.invest.global.kisapi.market.dto.PeriodStockPriceDto;
 import juby.invest.global.kisapi.token.service.TokenService;

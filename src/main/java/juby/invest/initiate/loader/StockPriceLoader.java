@@ -1,8 +1,8 @@
-package juby.invest.global.initiate.loader;
+package juby.invest.initiate.loader;
 
 import juby.invest.global.kisapi.market.dto.PeriodStockPriceDto;
-import juby.invest.global.initiate.api.KsiApiClient;
-import juby.invest.global.initiate.service.PeriodStockPriceLoaderService;
+import juby.invest.initiate.api.KsiApiClient;
+import juby.invest.initiate.service.PeriodStockPriceLoaderService;
 import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,7 +1,7 @@
-package juby.invest.global.initiate.root;
+package juby.invest.initiate.root;
 
-import juby.invest.global.initiate.loader.StockLoader;
-import juby.invest.global.initiate.loader.StockPriceLoader;
+import juby.invest.initiate.loader.StockLoader;
+import juby.invest.initiate.loader.StockPriceLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

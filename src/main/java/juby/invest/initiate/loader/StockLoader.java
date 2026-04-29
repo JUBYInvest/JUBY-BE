@@ -1,4 +1,4 @@
-package juby.invest.global.initiate.loader;
+package juby.invest.initiate.loader;
 
 import jakarta.transaction.Transactional;
 import juby.invest.domain.stock.entity.Stock;
