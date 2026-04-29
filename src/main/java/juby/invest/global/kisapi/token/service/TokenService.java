@@ -1,6 +1,6 @@
-package juby.invest.global.api.token.service;
+package juby.invest.global.kisapi.token.service;
 
-import juby.invest.global.api.token.dto.TokenDto;
+import juby.invest.global.kisapi.token.dto.TokenDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

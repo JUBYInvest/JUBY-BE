@@ -1,4 +1,4 @@
-package juby.invest.global.api.token.dto;
+package juby.invest.global.kisapi.token.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

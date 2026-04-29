@@ -1,9 +1,9 @@
-package juby.invest.global.api.token.controller;
+package juby.invest.global.kisapi.token.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import juby.invest.global.api.token.dto.TokenDto;
-import juby.invest.global.api.token.service.TokenService;
+import juby.invest.global.kisapi.token.dto.TokenDto;
+import juby.invest.global.kisapi.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
