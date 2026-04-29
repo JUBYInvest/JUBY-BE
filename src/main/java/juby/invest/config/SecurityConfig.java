@@ -46,7 +46,7 @@ public class SecurityConfig {
 
         http
                 .authorizeHttpRequests((auth) -> auth
-                        .requestMatchers("/", "/oauth2/**", "/login/**", "/backtest/**", "/error/**").permitAll()
+                        .requestMatchers("/", "/oauth2/**", "/login/**", "/swagger-ui/*","/backtest/**", "/error/**").permitAll()
                         .anyRequest().authenticated());
 
         // 로그아웃 시 홈으로 리다이렉트

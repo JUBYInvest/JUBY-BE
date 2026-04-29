@@ -1,16 +1,15 @@
 package juby.invest.stock.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 
 @Entity
 @Getter
 @Table(name = "daily_price")
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class DailyPrice {
 
@@ -39,15 +38,4 @@ public class DailyPrice {
 
     @Column(name = "volume", nullable = false)
     private Integer volume;
-
-    @Builder
-    public DailyPrice(Stock stock, LocalDate date, Integer openPrice, Integer highPrice, Integer lowPrice, Integer closePrice, Integer volume) {
-        this.stock = stock;
-        this.date = date;
-        this.openPrice = openPrice;
-        this.highPrice = highPrice;
-        this.lowPrice = lowPrice;
-        this.closePrice = closePrice;
-        this.volume = volume;
-    }
 }
