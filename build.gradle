@@ -42,6 +42,11 @@ dependencies {
 
 	// ta4j 라이브러리
 	implementation 'org.ta4j:ta4j-core:0.22.3'
+
+	// jwt 라이브러리
+	implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
 }
 
 test {

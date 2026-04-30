@@ -1,8 +1,10 @@
 package juby.invest.domain.member.dto;
 
+import jakarta.validation.constraints.NotNull;
 import juby.invest.domain.member.enums.Role;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import lombok.NonNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
@@ -11,17 +13,12 @@ import java.util.Collection;
 import java.util.Map;
 
 @Getter
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class CustomOAuth2User implements OAuth2User {
 
     private final Long userId;
     private final Role role;
-    private final String nickName;
-
-    @Override
-    public String getName() {
-        return nickName;
-    }
+    private final String name;
 
     @Override
     public Map<String, Object> getAttributes() {
