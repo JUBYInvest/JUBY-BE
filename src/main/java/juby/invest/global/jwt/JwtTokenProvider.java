@@ -77,7 +77,8 @@ public class JwtTokenProvider {
                     .parseSignedClaims(token);
             return true;
         } catch (Exception e){
-            throw new ProjectException(GeneralErrorCode.UNAUTHORIZED);
+            log.info("validateToken 검증 실패. {}", e.getMessage());
+            return false;
         }
     }
 
