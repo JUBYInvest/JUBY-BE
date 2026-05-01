@@ -5,7 +5,7 @@ import lombok.Builder;
 import java.math.BigDecimal;
 
 @Builder
-public class BacktestResDTO {
+public class BacktestResDto {
 
     @Builder
     public record GetInfo(

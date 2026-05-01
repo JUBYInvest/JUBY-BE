@@ -1,9 +1,9 @@
 package juby.invest.domain.backtest.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import juby.invest.domain.backtest.dto.BacktestResDTO;
+import juby.invest.domain.backtest.dto.BacktestReqDto;
+import juby.invest.domain.backtest.dto.BacktestResDto;
 import juby.invest.domain.backtest.exception.code.BacktestSuccessCode;
 import juby.invest.domain.backtest.service.BacktestService;
 import juby.invest.domain.member.dto.CustomOAuth2User;
@@ -12,10 +12,7 @@ import juby.invest.global.apiPayload.code.BaseSuccessCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/backtest")
@@ -28,19 +25,16 @@ public class BacktestController {
 
     /***
      *
-     * @param stockCode
-     * @param strategyName
      * @return
      */
     @Operation(summary = "백테스트 실행", description = "종목 코드와 전략 번호를 전달해주면 해당 전략을 실행한다.")
-    @GetMapping("/run")
-    public ApiResponse<BacktestResDTO.GetInfo> convert(
+    @PostMapping("/run")
+    public ApiResponse<BacktestResDto.GetInfo> convert(
             @AuthenticationPrincipal CustomOAuth2User customOAuth2User,
-            @Parameter(description = "종목 코드") @RequestParam("stock_code") String stockCode,
-            @Parameter(description = "전략 이름 (예) smaStrategy)") @RequestParam("strategy_name") String strategyName){
+            @RequestBody BacktestReqDto.ReqInfo dto){
 
         BaseSuccessCode successCode = BacktestSuccessCode.OK;
         log.info(customOAuth2User.getName());
-        return ApiResponse.onSuccess(successCode, backtestService.runStrategy(stockCode, strategyName));
+        return ApiResponse.onSuccess(successCode, backtestService.runStrategy(dto));
     }
 }

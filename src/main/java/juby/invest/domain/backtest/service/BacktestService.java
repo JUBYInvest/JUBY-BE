@@ -1,13 +1,14 @@
 package juby.invest.domain.backtest.service;
 
 import jakarta.transaction.Transactional;
+import juby.invest.domain.backtest.dto.BacktestReqDto;
 import juby.invest.domain.backtest.exception.BacktestException;
 import juby.invest.domain.backtest.exception.code.BacktestErrorCode;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.backtest.converter.AnalysisCriterionConverter;
 import juby.invest.domain.backtest.converter.BarSeriesConverter;
-import juby.invest.domain.backtest.dto.BacktestResDTO;
+import juby.invest.domain.backtest.dto.BacktestResDto;
 import juby.invest.domain.backtest.strategy.BacktestStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import org.ta4j.core.TradingRecord;
 import org.ta4j.core.backtest.BarSeriesManager;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -32,14 +34,20 @@ public class BacktestService {
     private final Map<String, BacktestStrategy> strategyMap;
 
     /***
-     * 함수: 종목코드와 전략 이름을 바탕으로 전략을 실행한다.
-     * @param stockCode 종목 코드 (ex 005930)
+     * 전달받은 종목코드, 전략, 시작일, 종료일을 기준으로 백테스트 전략을 수행한다.
+     * @param dto BacktestReqDto.ReqInfo
+     * @return BacktestResDto.GetInfo
      */
     @Transactional
-    public BacktestResDTO.GetInfo runStrategy(String stockCode, String strategyName){
+    public BacktestResDto.GetInfo runStrategy(BacktestReqDto.ReqInfo dto){
+
+        String stockCode = dto.stockCode();
+        String strategyName = dto.strategyName();
+        LocalDate startDate = dto.startDate();
+        LocalDate endDate = dto.endDate();
 
         // List<DailyPrice -> ta4j의 Barseries 변환
-        List<DailyPrice> dailyPriceList = dailyPriceRepository.findByStockStockCodeOrderByDateAsc(stockCode);
+        List<DailyPrice> dailyPriceList = dailyPriceRepository.findByStock_StockCodeAndDateBetweenOrderByDateAsc(stockCode, startDate, endDate);
 
         if (dailyPriceList.isEmpty()){
             throw new BacktestException(BacktestErrorCode.STOCKCODE_NOT_FOUND);
@@ -64,7 +72,7 @@ public class BacktestService {
         // 결과 지표 분석
         List<BigDecimal> analysisList = analysisCriterionConverter.converter(series, record);
 
-        return BacktestResDTO.GetInfo.builder()
+        return BacktestResDto.GetInfo.builder()
                 .stockCode(stockCode)
                 .strategyName(strategy.getName())
                 .totalReturn(analysisList.get(0))
