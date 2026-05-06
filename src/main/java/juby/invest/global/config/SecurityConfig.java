@@ -50,7 +50,8 @@ public class SecurityConfig {
 
         http
                 .authorizeHttpRequests((auth) -> auth
-                        .requestMatchers("/", "/oauth2/**", "/login/**", "/swagger-ui/**", "/v3/api-docs/**", "/error/**").permitAll()
+                        .requestMatchers("/", "/oauth2/**", "/login/**", "/swagger-ui/**", "/v3/api-docs/**", "/error/**",
+                                "/v1/**", "/api/**").permitAll() // 나중에는 v1, api 삭제해야함.
                         .anyRequest().authenticated());
 
         http

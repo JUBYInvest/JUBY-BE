@@ -58,6 +58,12 @@ kis:
     app-key: ${KIS_REALAPPKEY}
     app-secret: ${KIS_REALAPPSECRET}
 
+naver:
+  news:
+    base-url: "https://openapi.naver.com/v1/search/news.json"
+    app-key: ${NAVER_CLIENT_ID}
+    app-secret: ${NAVER_CLIENT_SECRET}
+
 jwt:
   secret: ${JWT_SECRET}
   access-token-validity: 1800000 # 30분

@@ -6,7 +6,7 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 @RequiredArgsConstructor
-public enum GeneralSuccessCode implements BaseErrorCode{
+public enum GeneralSuccessCode implements BaseSuccessCode{
 
     OK(HttpStatus.OK,
             "COMMON200_1",
