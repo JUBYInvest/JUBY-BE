@@ -10,6 +10,9 @@ public class AppConfig {
 
     @Value("${kis.mock.base-url}") private String mockInvestUrl;
     @Value("${kis.real.base-url}") private String realInvestUrl;
+    @Value("${naver.news.base-url}") private String naverNewsSearchUrl;
+    @Value("${naver.news.app-key}") private String naverNewsAppKey;
+    @Value("${naver.news.app-secret}") private String naverNewsAppSecret;
 
     // 모의 Domain
     @Bean
@@ -24,6 +27,16 @@ public class AppConfig {
     public RestClient realInvestRestClient(){
         return RestClient.builder()
                 .baseUrl(realInvestUrl)
+                .build();
+    }
+
+    // 네이버 뉴스 검색 API
+    @Bean
+    public RestClient newsSearchRestClient(){
+        return RestClient.builder()
+                .baseUrl(naverNewsSearchUrl)
+                .defaultHeader("X-Naver-Client-Id", naverNewsAppKey)
+                .defaultHeader("X-Naver-Client-Secret", naverNewsAppSecret)
                 .build();
     }
 }
