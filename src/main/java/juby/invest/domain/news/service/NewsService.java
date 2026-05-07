@@ -3,12 +3,14 @@ package juby.invest.domain.news.service;
 import juby.invest.domain.news.dto.NewsResDto;
 import juby.invest.domain.news.exception.NewsException;
 import juby.invest.domain.news.exception.code.NewsErrorCode;
+import juby.invest.domain.pinecone.service.PineconeService;
 import lombok.RequiredArgsConstructor;
+import org.openapitools.db_data.client.ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.HtmlUtils;
 
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -29,10 +31,10 @@ public class NewsService {
             throw new NewsException(NewsErrorCode.NOT_FOUND);
         }
 
-        return cleanHtml(response);
+        return cleanResponse(response);
     }
 
-    public NewsResDto.NewsResponse cleanHtml(NewsResDto.NewsResponse response){
+    public NewsResDto.NewsResponse cleanResponse(NewsResDto.NewsResponse response){
         List<NewsResDto.ItemDetail> cleanedItemList = response.itemList().stream()
                 .map(item -> NewsResDto.ItemDetail.builder()
                         .title(cleanHtml(item.title()))

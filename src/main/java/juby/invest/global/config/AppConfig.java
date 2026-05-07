@@ -1,5 +1,6 @@
 package juby.invest.global.config;
 
+import io.pinecone.configs.PineconeConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,6 +14,7 @@ public class AppConfig {
     @Value("${naver.news.base-url}") private String naverNewsSearchUrl;
     @Value("${naver.news.app-key}") private String naverNewsAppKey;
     @Value("${naver.news.app-secret}") private String naverNewsAppSecret;
+    @Value("${pinecone.app-key}") private String pineconeAppKey;
 
     // 모의 Domain
     @Bean
@@ -38,5 +40,11 @@ public class AppConfig {
                 .defaultHeader("X-Naver-Client-Id", naverNewsAppKey)
                 .defaultHeader("X-Naver-Client-Secret", naverNewsAppSecret)
                 .build();
+    }
+
+    // Pinecone 설정
+    @Bean
+    public PineconeConfig pineconeConfig(){
+        return new PineconeConfig(pineconeAppKey);
     }
 }
