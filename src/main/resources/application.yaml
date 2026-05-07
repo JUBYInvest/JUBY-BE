@@ -68,3 +68,6 @@ jwt:
   secret: ${JWT_SECRET}
   access-token-validity: 1800000 # 30분
   refresh-token-validity: 1209600000 # 14일
+
+pinecone:
+    app-key: ${PINECONE_APPKEY}

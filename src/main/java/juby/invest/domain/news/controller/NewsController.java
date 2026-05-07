@@ -7,6 +7,7 @@ import juby.invest.global.apiPayload.ApiResponse;
 import juby.invest.global.apiPayload.code.BaseSuccessCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.openapitools.db_data.client.ApiException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,7 +21,7 @@ public class NewsController {
     @GetMapping
     public ApiResponse<NewsResDto.NewsResponse> searchNews(
             @RequestParam("query") String query
-            ){
+            ) throws ApiException {
         BaseSuccessCode successCode = NewsSuccessCode.OK;
         return ApiResponse.onSuccess(successCode, newsService.callNewsApi(query));
     }
