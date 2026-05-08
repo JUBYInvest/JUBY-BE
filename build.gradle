@@ -49,9 +49,10 @@ dependencies {
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
 
 	// pinecone 라이브러리
-	implementation 'io.pinecone:pinecone-client:5.1.0'
+	implementation 'io.pinecone:pinecone-client:6.0.0'
 }
 
 test {
 	useJUnitPlatform()
 }
+
