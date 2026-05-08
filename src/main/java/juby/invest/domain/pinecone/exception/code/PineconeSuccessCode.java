@@ -9,7 +9,9 @@ import org.springframework.http.HttpStatus;
 @Getter
 public enum PineconeSuccessCode implements BaseSuccessCode {
 
-    OK(HttpStatus.OK, "PINECONE200_1", "PineconeDB에 성공적으로 값이 삽입되었습니다.");
+    OK(HttpStatus.OK, "PINECONE200_1", "PineconeDB에서 데이터를 성공적으로 조회하였습니다."),
+    CREATED(HttpStatus.CREATED, "PINECONE201_1", "PineconeDB에 성공적으로 값이 삽입되었습니다.");
+
 
     private final HttpStatus status;
     private final String code;

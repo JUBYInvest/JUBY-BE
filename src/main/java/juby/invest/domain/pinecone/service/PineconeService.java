@@ -1,8 +1,15 @@
 package juby.invest.domain.pinecone.service;
 
+import com.google.protobuf.Struct;
+import com.google.protobuf.Value;
 import io.pinecone.clients.Index;
 import io.pinecone.configs.PineconeConfig;
 import io.pinecone.configs.PineconeConnection;
+import io.pinecone.proto.QueryRequest;
+import io.pinecone.proto.QueryResponse;
+import io.pinecone.proto.ScoredVector;
+import io.pinecone.unsigned_indices_model.QueryResponseWithUnsignedIndices;
+import io.pinecone.unsigned_indices_model.ScoredVectorWithUnsignedIndices;
 import juby.invest.domain.news.dto.NewsResDto;
 import juby.invest.domain.news.service.NewsService;
 import juby.invest.domain.pinecone.converter.PineconeConverter;
@@ -10,6 +17,7 @@ import juby.invest.domain.pinecone.dto.PineconeResDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openapitools.db_data.client.ApiException;
+import org.openapitools.db_data.client.model.SearchRecordsResponse;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -28,22 +36,53 @@ public class PineconeService {
      * 함수 기능: 1. 주기적으로 종목 리스트를 순회하며, 네이버 뉴스 API를 호출한다.
      *          2. 받은 응답을 vectorDB에 넣을 수 있게끔 컨버터를 통해 변환한다.
      *          3. 변환된 최종 응답을 vectorDB에 삽입한다.
-     * @param query 종목 100개 리스트 (ex) 삼성전자, SK하이닉스, 현대자동차...)
+     * @param query 종목 검색어
      * @throws ApiException pinecone 호출 예외
      */
-    public PineconeResDto.PineconeSuccess upsertData(String query) throws ApiException {
+    public PineconeResDto.UpsertSuccess upsertData(String query) throws ApiException {
 
         pineconeConfig.setHost("juby-lovh45p.svc.aped-4627-b74a.pinecone.io");
         PineconeConnection connection = new PineconeConnection(pineconeConfig);
 
         Index index = new Index(pineconeConfig, connection, "juby");
 
-        List<Map<String, String>> upsertRecords = pineconeConverter.makeUpsertRecords(newsService.callNewsApi(query));
+        NewsResDto.NewsResponse newsResponse = newsService.callNewsApi(query);
+        List<Map<String, String>> upsertRecords = pineconeConverter.makeUpsertRecords(newsResponse, query);
 
         index.upsertRecords("naver_news", upsertRecords);
 
-        return PineconeResDto.PineconeSuccess.builder()
+        return PineconeResDto.UpsertSuccess.builder()
+                .newsResponse(newsResponse)
                 .upsertTime(LocalDateTime.now())
                 .build();
+    }
+
+    /***
+     * 함수 기능: 1. 사용자의 질문 요청을 vectorDB에서 조회한다.
+     *          2. 받은 데이터를 Dto로 변환한다.
+     *          3. AI에게 넘겨준다.
+     * @param question 질문 내용
+     * @param stockName 필터: 종목이름
+     * @throws ApiException pinecone 예외처리
+     */
+    public void searchData(String question, String stockName) throws ApiException {
+
+        pineconeConfig.setHost("juby-lovh45p.svc.aped-4627-b74a.pinecone.io");
+        PineconeConnection connection = new PineconeConnection(pineconeConfig);
+
+        Index index = new Index(pineconeConfig, connection, "juby");
+
+        List<String> fields = new ArrayList<>();
+        fields.add("title");
+        fields.add("description");
+        fields.add("pubDate");
+        fields.add("stock_name");
+
+        // 필터
+        Map<String, Object> filter = new HashMap<>();
+        filter.put("stock_name", stockName);
+
+        SearchRecordsResponse recordsResponse = index.searchRecordsByText(question, "naver_news", fields, 3, filter, null);
+        log.info("recordsResponse = {}", recordsResponse);
     }
 }
