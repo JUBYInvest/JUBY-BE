@@ -5,12 +5,10 @@ import juby.invest.domain.pinecone.exception.code.PineconeSuccessCode;
 import juby.invest.domain.pinecone.service.PineconeService;
 import juby.invest.global.apiPayload.ApiResponse;
 import juby.invest.global.apiPayload.code.BaseSuccessCode;
+import juby.invest.global.apiPayload.code.GeneralSuccessCode;
 import lombok.RequiredArgsConstructor;
 import org.openapitools.db_data.client.ApiException;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/v1/vectordb")
@@ -26,9 +24,26 @@ public class PineconeController {
      * @throws ApiException pinecone 예외 처리
      */
     @GetMapping
-    public ApiResponse<PineconeResDto.PineconeSuccess> upsertData(
+    public ApiResponse<PineconeResDto.UpsertSuccess> upsertData(
             @RequestParam("query") String query) throws ApiException {
-        BaseSuccessCode successCode = PineconeSuccessCode.OK;
+        BaseSuccessCode successCode = PineconeSuccessCode.CREATED;
         return ApiResponse.onSuccess(successCode, pineconeService.upsertData(query));
+    }
+
+    /***
+     * 함수 기능: vectorDB에 데이터를 조회하는 API
+     * @param question 전체 질문 명세
+     * @param stockName 종목
+     * @return 공통 응답 양식
+     * @throws ApiException pinecone 예외 처리
+     */
+    @GetMapping("/search")
+    public ApiResponse<Void> searchData(
+            @RequestParam("question") String question,
+            @RequestParam("stockName") String stockName) throws ApiException {
+        BaseSuccessCode successCode = PineconeSuccessCode.OK;
+        pineconeService.searchData(question, stockName);
+        return ApiResponse.onSuccess(successCode, null);
+
     }
 }

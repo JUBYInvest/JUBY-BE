@@ -13,7 +13,7 @@ public class PineconeConverter {
      * @param newsResponse 네이버 뉴스 API 응답
      * @return vectorDB에 넣을 레코드 리스트
      */
-    public List<Map<String, String>> makeUpsertRecords(NewsResDto.NewsResponse newsResponse){
+    public List<Map<String, String>> makeUpsertRecords(NewsResDto.NewsResponse newsResponse, String stockName){
 
         List<Map<String, String>> upsertRecords = new ArrayList<>();
 
@@ -25,6 +25,7 @@ public class PineconeConverter {
             record.put("description", item.description());
             record.put("pubDate", item.pubDate());
             record.put("text", item.title() + item.description());
+            record.put("stock_name", stockName);
 
             upsertRecords.add(record);
         }
