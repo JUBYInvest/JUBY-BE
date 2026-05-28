@@ -1,12 +1,10 @@
-package juby.invest.global.jwt;
+package juby.invest.global.security.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import juby.invest.domain.member.dto.CustomOAuth2User;
+import juby.invest.global.security.enitty.CustomOAuth2User;
 import juby.invest.domain.member.enums.Role;
-import juby.invest.global.apiPayload.code.GeneralErrorCode;
-import juby.invest.global.apiPayload.exception.ProjectException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

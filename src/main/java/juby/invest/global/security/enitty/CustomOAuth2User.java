@@ -1,10 +1,8 @@
-package juby.invest.domain.member.dto;
+package juby.invest.global.security.enitty;
 
-import jakarta.validation.constraints.NotNull;
 import juby.invest.domain.member.enums.Role;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NonNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 

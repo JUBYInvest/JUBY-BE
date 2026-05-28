@@ -1,41 +1,41 @@
-package juby.invest.domain.member.dto;
+package juby.invest.global.security.dto;
 
 import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
 
 @RequiredArgsConstructor
-public class GoogleResponse implements OAuth2Response{
+public class KakaoResponse implements OAuth2Response{
 
     private final Map<String, Object> attribute;
 
     @Override
     public String getProvider() {
-        return "google";
+        return "kakao";
     }
 
     @Override
     public String getProviderId() {
-        return attribute.get("sub").toString();
+        return "";
     }
 
     @Override
     public String getEmail() {
-        return attribute.get("email").toString();
+        return "";
     }
 
     @Override
     public String getName() {
-        return attribute.get("name").toString();
+        return "";
     }
 
     @Override
     public String getProfileUrl() {
-        return attribute.get("picture").toString();
+        return "";
     }
 
     @Override
     public String getBirthday() {
-        return "null";
+        return "";
     }
 }

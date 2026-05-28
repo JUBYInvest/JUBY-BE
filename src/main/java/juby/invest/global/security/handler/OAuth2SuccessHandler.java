@@ -1,11 +1,10 @@
-package juby.invest.global.apiPayload.handler;
+package juby.invest.global.security.handler;
 
-import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import juby.invest.domain.member.dto.CustomOAuth2User;
-import juby.invest.global.jwt.JwtTokenProvider;
+import juby.invest.global.security.enitty.CustomOAuth2User;
+import juby.invest.global.security.util.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;

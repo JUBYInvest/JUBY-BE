@@ -1,10 +1,11 @@
-package juby.invest.domain.member.service;
+package juby.invest.global.security.service;
 
 import jakarta.transaction.Transactional;
-import juby.invest.domain.member.dto.CustomOAuth2User;
-import juby.invest.domain.member.dto.GoogleResponse;
-import juby.invest.domain.member.dto.NaverResponse;
-import juby.invest.domain.member.dto.OAuth2Response;
+import juby.invest.global.security.dto.KakaoResponse;
+import juby.invest.global.security.enitty.CustomOAuth2User;
+import juby.invest.global.security.dto.GoogleResponse;
+import juby.invest.global.security.dto.NaverResponse;
+import juby.invest.global.security.dto.OAuth2Response;
 import juby.invest.domain.member.entity.Member;
 import juby.invest.domain.member.entity.SocialAccount;
 import juby.invest.domain.member.enums.Role;
