@@ -1,7 +1,7 @@
 ---
 name: Feature Request
 about: 기능 개발을 위한 이슈 템플릿
-title: "[Feature] 이슈 제목"
+title: "🌟[Feature] 이슈 제목"
 labels: "🌟"
 assignees: ''
 ---
