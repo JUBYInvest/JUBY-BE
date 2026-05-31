@@ -5,9 +5,11 @@ import juby.invest.domain.news.exception.code.NewsSuccessCode;
 import juby.invest.domain.news.service.NewsService;
 import juby.invest.global.apiPayload.ApiResponse;
 import juby.invest.global.apiPayload.code.BaseSuccessCode;
+import juby.invest.global.security.entity.CustomOAuth2User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openapitools.db_data.client.ApiException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,7 +22,8 @@ public class NewsController {
 
     @GetMapping
     public ApiResponse<NewsResDto.NewsResponse> searchNews(
-            @RequestParam("query") String query
+            @RequestParam("query") String query,
+            @AuthenticationPrincipal CustomOAuth2User customOAuth2User
             ) throws ApiException {
         BaseSuccessCode successCode = NewsSuccessCode.OK;
         return ApiResponse.onSuccess(successCode, newsService.callNewsApi(query));

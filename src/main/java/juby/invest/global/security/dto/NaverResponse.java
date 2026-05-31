@@ -1,5 +1,6 @@
 package juby.invest.global.security.dto;
 
+import juby.invest.domain.member.enums.SocialType;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
@@ -10,8 +11,8 @@ public class NaverResponse implements OAuth2Response{
     private final Map<String, Object> attribute;
 
     @Override
-    public String getProvider() {
-        return "naver";
+    public SocialType getProvider() {
+        return SocialType.NAVER;
     }
 
     @Override

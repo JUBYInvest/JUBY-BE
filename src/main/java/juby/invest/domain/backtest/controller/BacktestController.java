@@ -6,7 +6,7 @@ import juby.invest.domain.backtest.dto.BacktestReqDto;
 import juby.invest.domain.backtest.dto.BacktestResDto;
 import juby.invest.domain.backtest.exception.code.BacktestSuccessCode;
 import juby.invest.domain.backtest.service.BacktestService;
-import juby.invest.global.security.enitty.CustomOAuth2User;
+import juby.invest.global.security.entity.CustomOAuth2User;
 import juby.invest.global.apiPayload.ApiResponse;
 import juby.invest.global.apiPayload.code.BaseSuccessCode;
 import lombok.RequiredArgsConstructor;

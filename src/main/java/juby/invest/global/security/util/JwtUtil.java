@@ -3,7 +3,7 @@ package juby.invest.global.security.util;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import juby.invest.global.security.enitty.CustomOAuth2User;
+import juby.invest.global.security.entity.CustomOAuth2User;
 import juby.invest.domain.member.enums.Role;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,13 +17,13 @@ import java.util.Date;
 
 @Slf4j
 @Component
-public class JwtTokenProvider {
+public class JwtUtil {
 
     private final SecretKey secretKey;
     private final long accessTokenValidity;
     private final long refreshTokenValidity;
 
-    public JwtTokenProvider(
+    public JwtUtil(
             @Value("${jwt.secret}") String secretKey,
             @Value("${jwt.access-token-validity}") long accessTokenValidity,
             @Value("${jwt.refresh-token-validity}") long refreshTokenValidity) {
@@ -71,6 +71,7 @@ public class JwtTokenProvider {
         try {
             Jwts.parser()
                     .verifyWith(secretKey)
+                    .clockSkewSeconds(60)
                     .build()
                     .parseSignedClaims(token);
             return true;
@@ -93,7 +94,7 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
 
-        long userId = Long.parseLong(claims.getSubject());
+        Long userId = Long.parseLong(claims.getSubject());
         Role role = Role.valueOf(claims.get("role", String.class));
         String name = claims.get("name", String.class);
 

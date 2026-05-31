@@ -1,4 +1,4 @@
-package juby.invest.global.security.enitty;
+package juby.invest.global.security.entity;
 
 import juby.invest.domain.member.enums.Role;
 import lombok.AllArgsConstructor;
@@ -14,7 +14,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class CustomOAuth2User implements OAuth2User {
 
-    private final Long userId;
+    private final Long id;
     private final Role role;
     private final String name;
 
