@@ -3,13 +3,15 @@ package juby.invest.domain.member.entity;
 import jakarta.persistence.*;
 import juby.invest.domain.member.enums.InvestPersonality;
 import juby.invest.domain.member.enums.Role;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import juby.invest.domain.member.enums.SocialType;
+import lombok.*;
+
+import java.time.LocalDate;
 
 @Entity
 @Data
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "member")
 public class Member {
@@ -18,34 +20,28 @@ public class Member {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "personality_id")
+    private Personality personality;
+
     @Column(name = "email")
     private String email;
 
-    @Column(name = "nickname")
-    private String nickName;
-
-    @Column(name = "profile_img")
-    private String profileImg;
+    @Column(name = "name")
+    private String name;
 
     @Column(name = "birth")
     private String birth;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "invest_personality")
-    private InvestPersonality investPersonality;
+    @Column(name = "role")
+    @Builder.Default()
+    private Role role = Role.USER;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role")
-    private Role role;
+    @Column(name = "provider")
+    private SocialType socialType;
 
-    @Builder
-
-    public Member(String email, String nickName, String profileImg, String birth, Role role) {
-        this.email = email;
-        this.nickName = nickName;
-        this.profileImg = profileImg;
-        this.birth = birth;
-        this.investPersonality = null;
-        this.role = role;
-    }
+    @Column(name = "provider_id")
+    private String providerId;
 }

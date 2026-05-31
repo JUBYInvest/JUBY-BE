@@ -1,22 +1,23 @@
-package juby.invest.domain.member.dto;
+package juby.invest.global.security.dto;
 
+import juby.invest.domain.member.enums.SocialType;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
 
 @RequiredArgsConstructor
-public class GoogleResponse implements OAuth2Response{
+public class NaverResponse implements OAuth2Response{
 
     private final Map<String, Object> attribute;
 
     @Override
-    public String getProvider() {
-        return "google";
+    public SocialType getProvider() {
+        return SocialType.NAVER;
     }
 
     @Override
     public String getProviderId() {
-        return attribute.get("sub").toString();
+        return attribute.get("id").toString();
     }
 
     @Override
@@ -31,11 +32,11 @@ public class GoogleResponse implements OAuth2Response{
 
     @Override
     public String getProfileUrl() {
-        return attribute.get("picture").toString();
+        return attribute.get("profile_image").toString();
     }
 
     @Override
     public String getBirthday() {
-        return "null";
+        return attribute.get("birthday").toString();
     }
 }

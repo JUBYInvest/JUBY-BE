@@ -1,10 +1,9 @@
 package juby.invest.global.config;
 
-import juby.invest.global.apiPayload.handler.OAuth2SuccessHandler;
-import juby.invest.domain.member.service.CustomOAuth2MemberService;
-import juby.invest.global.jwt.JwtAuthenticationFilter;
+import juby.invest.global.security.handler.OAuth2SuccessHandler;
+import juby.invest.global.security.service.CustomOAuth2MemberService;
+import juby.invest.global.security.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
-import org.apache.catalina.User;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -22,6 +21,15 @@ public class SecurityConfig {
     private final CustomOAuth2MemberService customOAuth2MemberService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    // 허용 url
+    private final String[] allowUris = {
+            "/",
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
+            "/error/**",
+            "/api/**"
+    };
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -50,8 +58,7 @@ public class SecurityConfig {
 
         http
                 .authorizeHttpRequests((auth) -> auth
-                        .requestMatchers("/", "/oauth2/**", "/login/**", "/swagger-ui/**", "/v3/api-docs/**", "/error/**",
-                                "/v1/**", "/api/**").permitAll() // 나중에는 v1, api 삭제해야함.
+                        .requestMatchers(allowUris).permitAll() // 나중에는 v1, api 삭제해야함.
                         .anyRequest().authenticated());
 
         http
