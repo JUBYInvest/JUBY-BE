@@ -1,4 +1,4 @@
-package juby.invest.domain.auth.dto;
+package juby.invest.global.security.dto;
 
 import lombok.Builder;
 

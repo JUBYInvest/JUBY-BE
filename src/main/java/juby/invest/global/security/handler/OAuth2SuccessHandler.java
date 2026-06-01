@@ -3,7 +3,7 @@ package juby.invest.global.security.handler;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import juby.invest.domain.auth.dto.LoginResDto;
+import juby.invest.global.security.dto.LoginResDto;
 import juby.invest.global.apiPayload.ApiResponse;
 import juby.invest.global.apiPayload.code.BaseSuccessCode;
 import juby.invest.global.apiPayload.code.GeneralSuccessCode;
