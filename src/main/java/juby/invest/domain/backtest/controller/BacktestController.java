@@ -23,10 +23,6 @@ public class BacktestController {
 
     private final BacktestService backtestService;
 
-    /***
-     *
-     * @return
-     */
     @Operation(summary = "백테스트 실행", description = "종목 코드와 전략 번호를 전달해주면 해당 전략을 실행한다.")
     @PostMapping("/run")
     public ApiResponse<BacktestResDto.GetInfo> convert(
