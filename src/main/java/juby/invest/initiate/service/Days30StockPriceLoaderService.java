@@ -3,7 +3,7 @@ package juby.invest.initiate.service;
 import jakarta.transaction.Transactional;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
-import juby.invest.global.kisapi.market.dto.DailyStockPriceDto;
+import juby.invest.domain.kis.market.dto.DailyStockPriceDto;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class Days30StockPriceLoaderService {
 
-    private final RestClient investRestClient;
+    private final RestClient mockInvestRestClient;
     private final StockRepository stockRepository;
     private final DailyPriceRepository dailyPriceRepository;
     private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -33,7 +33,7 @@ public class Days30StockPriceLoaderService {
      */
     private List<DailyStockPriceDto.Output> getDailyStockPrice(String stockCode, String accessToken){
 
-        DailyStockPriceDto response = investRestClient.get()
+        DailyStockPriceDto response = mockInvestRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/uapi/domestic-stock/v1/quotations/inquire-daily-price")
                         .queryParam("FID_COND_MRKT_DIV_CODE", "J")

@@ -21,6 +21,12 @@ public class GeneralExceptionAdvice {
     // 지정되지 않은 예외 처리
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<String>> handleGlobalException(RuntimeException e){
+
+        // @PreAuthorize에 의한 AccessDenied 예외일 경우, ExceptionTranslation 필터에게 넘겨준다.
+        if (e instanceof org.springframework.security.access.AccessDeniedException){
+            throw e;
+        }
+
         BaseErrorCode errorCode = GeneralErrorCode.INTERNAL_SERVER_ERROR;
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.onFailure(errorCode, e.getMessage()));

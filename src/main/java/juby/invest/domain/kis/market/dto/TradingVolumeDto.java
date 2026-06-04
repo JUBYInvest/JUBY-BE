@@ -1,4 +1,4 @@
-package juby.invest.global.kisapi.market.dto;
+package juby.invest.domain.kis.market.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

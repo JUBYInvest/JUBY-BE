@@ -18,7 +18,7 @@ public class AppConfig {
 
     // 모의 Domain
     @Bean
-    public RestClient investRestClient(){
+    public RestClient mockInvestRestClient(){
         return RestClient.builder()
                 .baseUrl(mockInvestUrl)
                 .build();

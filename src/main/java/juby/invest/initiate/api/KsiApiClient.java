@@ -1,7 +1,7 @@
 package juby.invest.initiate.api;
 
-import juby.invest.global.kisapi.market.dto.PeriodStockPriceDto;
-import juby.invest.global.kisapi.token.service.TokenService;
+import juby.invest.domain.kis.market.dto.PeriodStockPriceDto;
+import juby.invest.domain.kis.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,7 +15,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class KsiApiClient {
 
-    private final RestClient investRestClient;
+    private final RestClient mockInvestRestClient;
     private final TokenService tokenService;
 
     @Value("${kis.mock.app-key}") String appKey;
@@ -32,7 +32,7 @@ public class KsiApiClient {
 
         String accessToken = tokenService.getMockAccessToken().accessToken();
 
-        PeriodStockPriceDto response = investRestClient.get()
+        PeriodStockPriceDto response = mockInvestRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice")
                         .queryParam("FID_COND_MRKT_DIV_CODE", "J")
