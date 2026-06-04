@@ -1,7 +1,7 @@
-package juby.invest.global.kisapi.market.service;
+package juby.invest.domain.kis.market.service;
 
-import juby.invest.global.kisapi.market.dto.CurrentPriceDto;
-import juby.invest.global.kisapi.token.service.TokenService;
+import juby.invest.domain.kis.market.dto.CurrentPriceDto;
+import juby.invest.domain.kis.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +16,7 @@ public class MarketService {
     @Value("${kis.mock.app-secret}") String appSecret;
     @Value("${kis.mock.app-key}") String appKey;
 
-    private final RestClient investRestClient;
+    private final RestClient mockInvestRestClient;
     private final TokenService tokenService;
 
     public CurrentPriceDto.Output getCurrentPrice(String stockCode){
@@ -24,7 +24,7 @@ public class MarketService {
         // accessToken 발급 과정
         String accessToken = tokenService.getMockAccessToken().accessToken();
 
-        CurrentPriceDto response = investRestClient.get()
+        CurrentPriceDto response = mockInvestRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/uapi/domestic-stock/v1/quotations/inquire-price")
                         .queryParam("FID_COND_MRKT_DIV_CODE", "J")

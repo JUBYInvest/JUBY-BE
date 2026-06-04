@@ -15,7 +15,7 @@ spring:
       hibernate:
         format_sql: true
 
-  # 소셜로그인
+  # 소셜 로그인
   security:
     oauth2:
       client:
@@ -68,12 +68,12 @@ spring:
 kis:
   mock:
     base-url: "https://openapivts.koreainvestment.com:29443"
-    app-key: ${KIS_APPKEY}
-    app-secret: ${KIS_APPSECRET}
+    app-key: ${KIS_MOCK_APP_KEY}
+    app-secret: ${KIS_MOCK_APP_SECRET}
   real:
     base-url: "https://openapi.koreainvestment.com:9443"
-    app-key: ${KIS_REALAPPKEY}
-    app-secret: ${KIS_REALAPPSECRET}
+    app-key: ${KIS_REAL_APP_KEY}
+    app-secret: ${KIS_REAL_APP_SECRET}
 
 naver:
   news:
@@ -85,6 +85,9 @@ jwt:
   secret: ${JWT_SECRET}
   access-token-validity: 1800000 # 30분
   refresh-token-validity: 1209600000 # 14일
+
+aes:
+  secret: ${AES_128}
 
 pinecone:
   app-key: ${PINECONE_APPKEY}

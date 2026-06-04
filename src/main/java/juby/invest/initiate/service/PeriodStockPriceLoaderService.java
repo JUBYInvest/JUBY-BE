@@ -3,7 +3,7 @@ package juby.invest.initiate.service;
 import jakarta.transaction.Transactional;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
-import juby.invest.global.kisapi.market.dto.PeriodStockPriceDto;
+import juby.invest.domain.kis.market.dto.PeriodStockPriceDto;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;

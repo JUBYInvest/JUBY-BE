@@ -1,6 +1,6 @@
 package juby.invest.initiate.loader;
 
-import juby.invest.global.kisapi.market.dto.PeriodStockPriceDto;
+import juby.invest.domain.kis.market.dto.PeriodStockPriceDto;
 import juby.invest.initiate.api.KsiApiClient;
 import juby.invest.initiate.service.PeriodStockPriceLoaderService;
 import juby.invest.domain.stock.repository.StockRepository;
