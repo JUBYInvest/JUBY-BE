@@ -48,7 +48,7 @@ jobs:
           script: |
             # EC2 내부에서 도커 허브 로그인 (private 레포를 pull 하기위해)
             sudo docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_PASSWORD }}
-            ㅎ
+            
             echo "$ENV_FILE" > .env
             
             sudo docker stop ${{ secrets.PROJECT_NAME }} || true
