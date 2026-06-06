@@ -3,8 +3,8 @@ spring:
     name: invest
   # MySQL DB
   datasource:
-    url: jdbc:mysql://localhost:3306/Juby
-    username: root
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
@@ -90,7 +90,7 @@ aes:
   secret: ${AES_128}
 
 pinecone:
-  app-key: ${PINECONE_APPKEY}
+  app-key: ${PINECONE_APP_KEY}
 
 logging:
   level:
