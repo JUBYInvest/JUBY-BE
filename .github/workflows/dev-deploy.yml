@@ -62,5 +62,5 @@ jobs:
             sudo docker run -p ${{ secrets.PORT }}:${{ secrets.PORT }} \
             --name ${{ secrets.PROJECT_NAME }} \
             --env-file .env \
-            -e SPRING_PROFILES_ACTIVE=dev \ # profile 등록
+            -e SPRING_PROFILES_ACTIVE=dev \
             -d ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.PROJECT_NAME }}:latest
