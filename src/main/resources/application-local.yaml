@@ -1,0 +1,24 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true # Hibernate가 실행한 SQL 쿼리를 콘솔에 출력
+    properties: # 출력된 SQL 쿼리를 읽기 쉽게 정렬
+      hibernate:
+        format_sql: true
+
+  # 소셜 로그인
+  security:
+    oauth2:
+      client:
+        registration:
+          naver:
+            redirect-uri: http://localhost:8080/login/oauth2/code/naver
+          google:
+            redirect-uri: http://localhost:8080/login/oauth2/code/google
+          kakao:
+            redirect-uri: http://localhost:8080/login/oauth2/code/kakao
+
+logging:
+  level:
+    org.springframework.security: DEBUG
