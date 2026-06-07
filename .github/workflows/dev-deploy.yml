@@ -41,17 +41,19 @@ jobs:
 
       - name: Application Run
         uses: appleboy/ssh-action@v0.1.6
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_KEY }}
+          envs: ENV_FILE
           script: |
+            
             # EC2 내부에서 도커 허브 로그인 (private 레포를 pull 하기위해)
             sudo docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_PASSWORD }}
             
-            cat << 'EOF' > .env
-            ${{ secrets.ENV_FILE }}
-            EOF
+            echo "$ENV_FILE" > .env
             
             sudo docker stop ${{ secrets.PROJECT_NAME }} || true
             sudo docker rm -f ${{ secrets.PROJECT_NAME }} || true
