@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
-public record PeriodStockPriceDto(
+public record PeriodDailyPriceDto(
         @JsonProperty("rt_cd") String rtCd,
         @JsonProperty("msg1") String message,
         @JsonProperty("output2") List<Output> output

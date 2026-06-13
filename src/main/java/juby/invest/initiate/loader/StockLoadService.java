@@ -12,7 +12,7 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class StockLoader {
+public class StockLoadService {
 
     private final StockRepository stockRepository;
 
@@ -22,6 +22,7 @@ public class StockLoader {
      */
     @Transactional
     public void initStockCodeAndStockName(){
+
         if (stockRepository.count() > 0){
             log.info("이미 국내 시총 100위 기업 저장 완료.");
             return;
@@ -127,7 +128,9 @@ public class StockLoader {
                 Stock.builder().stockCode("064400").stockName("LG씨엔에스").build(),
                 Stock.builder().stockCode("005385").stockName("현대차우").build(),
                 Stock.builder().stockCode("028050").stockName("삼성E&A").build(),
-                Stock.builder().stockCode("052690").stockName("한전기술").build());
+                Stock.builder().stockCode("052690").stockName("한전기술").build(),
+                Stock.builder().stockCode("353200").stockName("대덕전자").build(),
+                Stock.builder().stockCode("000990").stockName("DB하이텍").build());
 
         stockRepository.saveAll(initialStocks);
         log.info("기본 주식 종목 {}개 INSERT 완료", initialStocks.size());
