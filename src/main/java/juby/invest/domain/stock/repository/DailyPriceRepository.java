@@ -23,4 +23,8 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
     );
 
     String stock(Stock stock);
+
+    boolean findByStock(Stock stock);
+
+    List<DailyPrice> findAllByStock(Stock stock);
 }

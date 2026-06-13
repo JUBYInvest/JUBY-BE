@@ -34,9 +34,7 @@ public class TokenService {
     /**
      *  mockAccessToken을 반환
      */
-    public TokenDto.TokenResponse getMockAccessToken(){
-        return getAccessToken(TokenType.MOCK);
-    }
+    public TokenDto.TokenResponse getMockAccessToken(){ return getAccessToken(TokenType.MOCK); }
 
     /***
      * realAccessToken을 반환
