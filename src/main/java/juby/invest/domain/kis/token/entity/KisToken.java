@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -31,9 +32,9 @@ public class KisToken {
     private String tokenValue;
 
     @Column(name = "expired_at", nullable = false)
-    private LocalDateTime expiredAt;
+    private Instant expiredAt;
 
-    public void updateToken(String updateToken, LocalDateTime updateExpiredAt) {
+    public void updateToken(String updateToken, Instant updateExpiredAt) {
         this.tokenValue = updateToken;
         this.expiredAt = updateExpiredAt;
     }
