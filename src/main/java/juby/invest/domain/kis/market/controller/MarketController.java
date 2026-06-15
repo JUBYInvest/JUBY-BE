@@ -57,7 +57,7 @@ public class MarketController {
         return ResponseEntity.ok(periodStockPrice);
     }
 
-    @Operation(summary = "국내휴장일조회API", description = "영업일,거래일 여부ㄹ를 조회한다.")
+    @Operation(summary = "국내휴장일조회API", description = "영업일,거래일 여부를 조회한다.")
     @GetMapping("/holiday")
     public ResponseEntity<List<HolidayDto.Output>> checkHolidayList(
             @Parameter(description = "기준일자") @RequestParam("basedate") String baseDate

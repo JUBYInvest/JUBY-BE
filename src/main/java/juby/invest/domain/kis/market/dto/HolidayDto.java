@@ -10,8 +10,9 @@ public record HolidayDto(
         @JsonProperty("output") List<Output> output
 ){
     public record Output(
-            @JsonProperty("bass_dt") String baseDate,
-            @JsonProperty("bzdy_yn") String openDay,
-            @JsonProperty("tr_day_yn") String tradeDay
+            @JsonProperty("bass_dt") String baseDate, // 기준일자 (YYYYMMDD)
+            @JsonProperty("bzdy_yn") String businessDay, // 영업일여부 (금융기관이 업무를 하는 날)
+            @JsonProperty("tr_day_yn") String tradeDay, // 거래일 여부 (증권 업무가 가능한 날)
+            @JsonProperty("opnd_yn") String openDay // 개장일 여부 (주식시장이 개방되는 날)
     ){}
 }

@@ -1,6 +1,8 @@
 package juby.invest.domain.kis.market.scheduler;
 
+import io.netty.handler.codec.DateFormatter;
 import juby.invest.domain.kis.market.dto.DailyPriceDto;
+import juby.invest.domain.kis.market.dto.HolidayDto;
 import juby.invest.domain.kis.market.service.MarketService;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
@@ -13,6 +15,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,15 +28,27 @@ public class DailyPriceScheduler {
     private final StockRepository stockRepository;
     private final DailyPriceRepository dailyPriceRepository;
     private final MarketService marketService;
+    private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     @Profile("dev") // EC2에서만 실행
-    @Scheduled(cron = "0 35 15 * * MON-FRI")
+    @Scheduled(cron = "0 35 15 * * MON-FRI", zone = "Asia/Seoul")
     public void getDailyPrice() throws InterruptedException {
 
+        // 장날/휴장일인지 먼저 파악
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        String todayString = dateTimeFormatter.format(today);
+
+        List<HolidayDto.Output> holidayList = marketService.getHolidayList(todayString);
+        HolidayDto.Output first = holidayList.getFirst();
+        if (first.baseDate().equals(todayString) && first.openDay().equals("N")){
+            log.info("[스케줄러-1] 금일({})은 휴장일이어서 스케줄러 동작 x", today);
+            return;
+        }
+
+        // 스케줄러 동작 시작
         log.info("[스케줄러-1] 일봉 수집 스케줄러 동작 시작.");
         List<Stock> stocks = stockRepository.findAll();
         List<DailyPrice> dailyPrices = new ArrayList<>();
-        LocalDate today = LocalDate.now();
 
         for (Stock stock : stocks) {
             if (dailyPriceRepository.existsByStock_StockCodeAndDate(stock.getStockCode(), today)){
@@ -58,7 +74,7 @@ public class DailyPriceScheduler {
             } catch (Exception e) {
                 log.error("스케줄러 동작 중 문제 발생: {}, 종목명: {}", e, stock.getStockName());
             }
-            Thread.sleep(100);
+            Thread.sleep(100); // 실전 도메인 API 호출 제한: 1초당 18건
         }
 
         if (!dailyPrices.isEmpty()){
