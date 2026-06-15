@@ -78,9 +78,9 @@ public class MarketService {
         HolidayDto response = realInvestRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/uapi/domestic-stock/v1/quotations/chk-holiday")
-                        .queryParam("BASS_DT", baseDate)
-                        .queryParam("CTX_AREA_NK", "")
-                        .queryParam("CTX_AREA_FK", "")
+                        .queryParam("BASS_DT", baseDate) // 기준일자
+                        .queryParam("CTX_AREA_NK", "") // 연속조회키
+                        .queryParam("CTX_AREA_FK", "") // 연속조회검색조건
                         .build())
                 .header("content-type", "application/json; charset=utf-8")
                 .header("authorization", "Bearer " + accessToken)
