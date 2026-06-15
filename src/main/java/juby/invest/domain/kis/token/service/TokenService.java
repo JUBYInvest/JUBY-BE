@@ -3,8 +3,6 @@ package juby.invest.domain.kis.token.service;
 import juby.invest.domain.kis.token.dto.TokenDto;
 import juby.invest.domain.kis.token.entity.KisToken;
 import juby.invest.domain.kis.token.enums.TokenType;
-import juby.invest.domain.kis.token.exception.TokenException;
-import juby.invest.domain.kis.token.exception.code.TokenErrorCode;
 import juby.invest.domain.kis.token.repository.TokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +10,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
+
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
@@ -71,13 +73,13 @@ public class TokenService {
             if (optionalKisToken.isPresent()) {
                 log.info("기존 {} 토큰이 최신화됩니다. 토큰 값: {}", tokenType, response.accessToken());
                 KisToken kisToken = optionalKisToken.get();
-                kisToken.updateToken(response.accessToken(), stringToLocalDateTime(response.expiresAt()));
+                kisToken.updateToken(response.accessToken(), stringToInstantTime(response.expiresAt()));
             } else { // 토큰이 아예 없는 경우 -> save
                 log.info("새로 {} 토큰이 발급됩니다. 토큰 값: {}", tokenType, response.accessToken());
                 KisToken kisToken = KisToken.builder()
                         .tokenType(tokenType)
                         .tokenValue(response.accessToken())
-                        .expiredAt(stringToLocalDateTime(response.expiresAt()))
+                        .expiredAt(stringToInstantTime(response.expiresAt()))
                         .build();
 
                 tokenRepository.save(kisToken);
@@ -117,7 +119,7 @@ public class TokenService {
      */
     private boolean isValid(KisToken kisToken) {
         // 현재 시간 + 10분이 토큰의 유효시간보다 이전이어야 한다.
-        LocalDateTime nowPlus10Min = LocalDateTime.now().plusMinutes(10);
+        Instant nowPlus10Min = Instant.now().plus(Duration.ofMinutes(10));
 
         return nowPlus10Min.isBefore(kisToken.getExpiredAt());
     }
@@ -125,12 +127,12 @@ public class TokenService {
     /***
      * String -> LocalDateTime으로 변환하는 함수
      * @param dateStr KIS 토큰 발급 API 응답값
-     * @return 만료시간 (localDateTime)
+     * @return 만료시간 (Instant)
      */
-    private LocalDateTime stringToLocalDateTime(String dateStr) {
+    private Instant stringToInstantTime(String dateStr) {
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-        return LocalDateTime.parse(dateStr, formatter);
+        LocalDateTime localDateTime = LocalDateTime.parse(dateStr, formatter);
+        return localDateTime.atZone(ZoneId.of("Asia/Seoul")).toInstant();
     }
 }
