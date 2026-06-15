@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class MarketService {
 
     @Value("${kis.real.app-key}") String realAppKey;
@@ -25,27 +27,27 @@ public class MarketService {
     private final TokenService tokenService;
 
     /***
-     * 함수 기능: 주식 현재가 시세 조회 API
+     * 함수 기능: 주식현재가 시세 조회 API
      * @param stockCode 종목코드(ex 005930)
      * @return 응답DTO
      */
-    public CurrentPriceDto.Output getCurrentPrice(String stockCode){
+    public DailyPriceDto.Output getDailyPrice(String stockCode) throws InterruptedException {
 
         // accessToken 발급 과정
-        String accessToken = tokenService.getMockAccessToken().accessToken();
+        String accessToken = tokenService.getRealAccessToken().accessToken();
 
-        CurrentPriceDto response = mockInvestRestClient.get()
+        DailyPriceDto response = realInvestRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/uapi/domestic-stock/v1/quotations/inquire-price")
                         .queryParam("FID_COND_MRKT_DIV_CODE", "J")
                         .queryParam("FID_INPUT_ISCD", stockCode) // 입력 종목 코드
                         .build())
                 .header("authorization", "Bearer " + accessToken)
-                .header("appKey", mockAppKey)
-                .header("appsecret", mockAppSecret)
+                .header("appKey", realAppKey)
+                .header("appsecret", realAppSecret)
                 .header("tr_id", "FHKST01010100")
                 .retrieve()
-                .body(CurrentPriceDto.class);
+                .body(DailyPriceDto.class);
 
         if (response == null){
             log.info("현재가 조회 실패");
@@ -53,7 +55,15 @@ public class MarketService {
         }
 
         log.info("현재가 조회 성공: response.output 반환 {}", response.output());
-        return new CurrentPriceDto.Output(response.output().currentPrice(), response.output().compareYesterday());
+        return DailyPriceDto.Output.builder()
+                .openPrice(response.output().openPrice())
+                .highPrice(response.output().highPrice())
+                .lowPrice(response.output().lowPrice())
+                .currentPrice(response.output().currentPrice())
+                .volume(response.output().volume())
+                .compareYesterday(response.output().compareYesterday())
+                .compareYesterdaySign(response.output().compareYesterdaySign())
+                .build();
     }
 
     /***
@@ -61,7 +71,7 @@ public class MarketService {
      * @param baseDate 기준일자
      * @return 응답DTO
      */
-    public List<HolidayDto.Output> getHolidayList(String baseDate){
+    public List<HolidayDto.Output> getHolidayList(String baseDate) throws InterruptedException {
 
         String accessToken = tokenService.getRealAccessToken().accessToken();
 
@@ -96,7 +106,7 @@ public class MarketService {
      * @param stockCode 종목코드 (ex 005930)
      * @return 응답 DTO
      */
-    public List<DailyStockPriceDto.Output> getDailyStockPrice(String stockCode){
+    public List<DailyStockPriceDto.Output> getDailyStockPrice(String stockCode) throws InterruptedException {
         String accessToken = tokenService.getMockAccessToken().accessToken();
 
         DailyStockPriceDto response = mockInvestRestClient.get()
@@ -124,13 +134,13 @@ public class MarketService {
     }
 
     /***
-     * 함수 기능: 국내 주식기간별 시세 조회 API
+     * 함수 기능: 국내주식기간별 시세 조회 API
      * @param stockCode 종목코드 (ex 005930)
      * @param startDate 조회 시작일자
      * @param endDate 조회 종료일자 (최대 100개)
      * @return
      */
-    public List<PeriodDailyPriceDto.Output> getPeriodStockPrice(String stockCode, String startDate, String endDate){
+    public List<PeriodDailyPriceDto.Output> getPeriodStockPrice(String stockCode, String startDate, String endDate) throws InterruptedException {
 
         String accessToken = tokenService.getMockAccessToken().accessToken();
 
@@ -141,7 +151,7 @@ public class MarketService {
                         .queryParam("FID_INPUT_ISCD", stockCode)
                         .queryParam("FID_INPUT_DATE_1", startDate)
                         .queryParam("FID_INPUT_DATE_2", endDate)
-                        .queryParam("FID_PERIOD_DIV_CODE", "D")
+                        .queryParam("FID_PERIOD_DIV_CODE", "D") // D:일봉 W:주봉 M:월봉 Y:년봉
                         .queryParam("FID_ORG_ADJ_PRC", "0") // 수정주가 원주가 가격 여부. 0: 수정주가 1: 원주가
                         .build())
                 .header("content-type", "application/json; charset=utf-8")
@@ -162,10 +172,10 @@ public class MarketService {
     }
 
     /***
-     * 함수 기능: 거래량 순위 조회 API
+     * 함수 기능: 거래량순위 조회 API
      * @return
      */
-    public List<TradingVolumeDto.Output> getTradingVolume(){
+    public List<TradingVolumeDto.Output> getTradingVolume() throws InterruptedException {
         String accessToken = tokenService.getRealAccessToken().accessToken();
 
         TradingVolumeDto response = realInvestRestClient.get()

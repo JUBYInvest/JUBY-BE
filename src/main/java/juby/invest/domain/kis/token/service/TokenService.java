@@ -34,19 +34,19 @@ public class TokenService {
     /**
      *  mockAccessToken을 반환
      */
-    public TokenDto.TokenResponse getMockAccessToken(){ return getAccessToken(TokenType.MOCK); }
+    public TokenDto.TokenResponse getMockAccessToken() throws InterruptedException { return getAccessToken(TokenType.MOCK); }
 
     /***
      * realAccessToken을 반환
      */
-    public TokenDto.TokenResponse getRealAccessToken(){
+    public TokenDto.TokenResponse getRealAccessToken() throws InterruptedException {
         return getAccessToken(TokenType.REAL);
     }
 
     /***
      * (mock/real) accessToken을 반환한다.
      */
-    private TokenDto.TokenResponse getAccessToken(TokenType tokenType){
+    private TokenDto.TokenResponse getAccessToken(TokenType tokenType) throws InterruptedException {
         Optional<KisToken> optionalKisToken = tokenRepository.findByTokenType(tokenType);
 
         TokenDto.TokenResponse response;
@@ -62,6 +62,10 @@ public class TokenService {
                     .build();
         } else { // DB에 토큰이 없거나, 유효하지 않다면 새로 토큰을 만들어 반환
             response = callKisTokenApi(tokenType);
+
+            if (tokenType.name().equals("MOCK")){
+                Thread.sleep(1000); // 초당 1건 호출 제한
+            }
 
             // 기존 토큰이 만료된 경우 -> update
             if (optionalKisToken.isPresent()) {

@@ -30,7 +30,7 @@ public class TokenController {
     @Operation(summary = "KIS mockAccessToken 발급", description = "KIS 접근토큰발급 API (모의 도메인 - mockAccessToken)")
     @GetMapping("/mock")
     @PreAuthorize("hasRole('MANAGER')")
-    public ApiResponse<TokenDto.TokenResponse> getMockAccessToken(){
+    public ApiResponse<TokenDto.TokenResponse> getMockAccessToken() throws InterruptedException {
         BaseSuccessCode successCode = TokenSuccessCode.MOCK_TOKEN_SUCCESS;
         return ApiResponse.onSuccess(successCode, tokenService.getMockAccessToken());
     }
@@ -38,7 +38,7 @@ public class TokenController {
     @Operation(summary = "KIS realAccessToken 발급", description = "KIS 접근토큰발급 API (실전 도메인 - realAccessToken)")
     @PreAuthorize("hasRole('MANAGER')")
     @GetMapping("/real")
-    public ApiResponse<TokenDto.TokenResponse> getRealAccessToken(){
+    public ApiResponse<TokenDto.TokenResponse> getRealAccessToken() throws InterruptedException {
         BaseSuccessCode successCode = TokenSuccessCode.REAL_TOKEN_SUCCESS;
         return ApiResponse.onSuccess(successCode, tokenService.getRealAccessToken());
     }

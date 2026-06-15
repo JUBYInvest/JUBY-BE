@@ -26,15 +26,15 @@ public class MarketController {
 
     @Operation(summary = "주식 현재가 및 전일대비 증감 조회", description = "종목 코드를 입력 받아 현재가와 전일대비 증감액을 반환한다.")
     @GetMapping("/price")
-    public ResponseEntity<CurrentPriceDto.Output> getPrice(@Parameter(description = "종목 코드")
-            @RequestParam String code){
-        CurrentPriceDto.Output response = marketService.getCurrentPrice(code);
+    public ResponseEntity<DailyPriceDto.Output> getPrice(@Parameter(description = "종목 코드")
+            @RequestParam String code) throws InterruptedException {
+        DailyPriceDto.Output response = marketService.getDailyPrice(code);
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "주식 거래량 조회", description = "주식의 거래량 TOP 30 목록을 반환한다.")
     @GetMapping("/volume-rank")
-    public ResponseEntity<List<TradingVolumeDto.Output>> getTradingVolume(){
+    public ResponseEntity<List<TradingVolumeDto.Output>> getTradingVolume() throws InterruptedException {
         List<TradingVolumeDto.Output> response = marketService.getTradingVolume();
         return ResponseEntity.ok(response);
     }
@@ -42,7 +42,7 @@ public class MarketController {
     @Operation(summary = "주식현재가 일자별 조회", description = "종목의 30일 OHLCV정보를 조회한다.")
     @GetMapping("/daily-stock")
     public ResponseEntity<List<DailyStockPriceDto.Output>> getDailyStockPrice(@Parameter(description = "종목 코드")
-            @RequestParam String stockCode){
+            @RequestParam String stockCode) throws InterruptedException {
         List<DailyStockPriceDto.Output> dailyStockPrice = marketService.getDailyStockPrice(stockCode);
         return ResponseEntity.ok(dailyStockPrice);
     }
@@ -52,7 +52,7 @@ public class MarketController {
     public ResponseEntity<List<PeriodDailyPriceDto.Output>> getPeriodStockPrice(
             @Parameter(description = "종목코드(005930)") @RequestParam("stockcode") String stockCode,
             @Parameter(description = "시작날짜(20250303)") @RequestParam("startdate") String startDate,
-            @Parameter(description = "종료날짜(20250310") @RequestParam("enddate") String endDate){
+            @Parameter(description = "종료날짜(20250310") @RequestParam("enddate") String endDate) throws InterruptedException {
         List<PeriodDailyPriceDto.Output> periodStockPrice = marketService.getPeriodStockPrice(stockCode, startDate, endDate);
         return ResponseEntity.ok(periodStockPrice);
     }
@@ -61,7 +61,7 @@ public class MarketController {
     @GetMapping("/holiday")
     public ResponseEntity<List<HolidayDto.Output>> checkHolidayList(
             @Parameter(description = "기준일자") @RequestParam("basedate") String baseDate
-    ){
+    ) throws InterruptedException {
         List<HolidayDto.Output> holidayList = marketService.getHolidayList(baseDate);
         return ResponseEntity.ok(holidayList);
     }
