@@ -31,7 +31,7 @@ public class DailyPriceScheduler {
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     @Profile("dev") // EC2에서만 실행
-    @Scheduled(cron = "0 5 21 * * MON-FRI", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 10 21 * * MON-FRI", zone = "Asia/Seoul")
     public void getDailyPrice() throws InterruptedException {
 
         // 장날/휴장일인지 먼저 파악
