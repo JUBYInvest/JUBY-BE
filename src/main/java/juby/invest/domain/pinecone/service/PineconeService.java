@@ -17,7 +17,9 @@ import juby.invest.domain.pinecone.dto.PineconeResDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openapitools.db_data.client.ApiException;
+import org.openapitools.db_data.client.model.Hit;
 import org.openapitools.db_data.client.model.SearchRecordsResponse;
+import org.openapitools.db_data.client.model.SearchRecordsResponseResult;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -28,7 +30,7 @@ import java.util.*;
 @Slf4j
 public class PineconeService {
 
-    private final PineconeConfig pineconeConfig;
+    private final Index pineconeConfig;
     private final PineconeConverter pineconeConverter;
     private final NewsService newsService;
 
@@ -41,15 +43,10 @@ public class PineconeService {
      */
     public PineconeResDto.UpsertSuccess upsertData(String query) throws ApiException {
 
-        pineconeConfig.setHost("juby-lovh45p.svc.aped-4627-b74a.pinecone.io");
-        PineconeConnection connection = new PineconeConnection(pineconeConfig);
-
-        Index index = new Index(pineconeConfig, connection, "juby");
-
         NewsResDto.NewsResponse newsResponse = newsService.callNewsApi(query);
         List<Map<String, String>> upsertRecords = pineconeConverter.makeUpsertRecords(newsResponse, query);
 
-        index.upsertRecords("naver_news", upsertRecords);
+        pineconeConfig.upsertRecords("naver_news", upsertRecords);
 
         return PineconeResDto.UpsertSuccess.builder()
                 .newsResponse(newsResponse)
@@ -65,13 +62,9 @@ public class PineconeService {
      * @param stockName 필터: 종목이름
      * @throws ApiException pinecone 예외처리
      */
-    public void searchData(String question, String stockName) throws ApiException {
+    public PineconeResDto.SearchSuccess searchData(String question, String stockName) throws ApiException {
 
-        pineconeConfig.setHost("juby-lovh45p.svc.aped-4627-b74a.pinecone.io");
-        PineconeConnection connection = new PineconeConnection(pineconeConfig);
-
-        Index index = new Index(pineconeConfig, connection, "juby");
-
+        // 검색할 내용들
         List<String> fields = new ArrayList<>();
         fields.add("title");
         fields.add("description");
@@ -82,7 +75,30 @@ public class PineconeService {
         Map<String, Object> filter = new HashMap<>();
         filter.put("stock_name", stockName);
 
-        SearchRecordsResponse recordsResponse = index.searchRecordsByText(question, "naver_news", fields, 3, filter, null);
-        log.info("recordsResponse = {}", recordsResponse);
+        // 응답 반환 및 정보 분리
+        SearchRecordsResponse recordsResponse = pineconeConfig.searchRecordsByText(question, "naver_news", fields, 3, filter, null);
+        log.info("recordsResposne = {}", recordsResponse);
+
+        List<Hit> hits = recordsResponse.getResult().getHits();
+        List<PineconeResDto.SearchSuccess.News> newsList = new ArrayList<>();
+
+        for (Hit hit : hits){
+            Map<String, Object> resFields = (Map<String, Object>) hit.getFields();
+
+            String title = resFields.get("title").toString();
+            String description = resFields.get("description").toString();
+            String pubDate = resFields.get("pubDate").toString();
+
+            newsList.add(PineconeResDto.SearchSuccess.News.builder()
+                    .stockName(stockName)
+                    .title(title)
+                    .description(description)
+                    .pubDate(pubDate)
+                    .build());
+        }
+
+        return PineconeResDto.SearchSuccess.builder()
+                .newsList(newsList)
+                .build();
     }
 }
