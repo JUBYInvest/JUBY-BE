@@ -56,7 +56,9 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
-
+  ai:
+    openai:
+      api-key: ${OPEN_API_KEY}
 kis:
   mock:
     base-url: "https://openapivts.koreainvestment.com:29443"

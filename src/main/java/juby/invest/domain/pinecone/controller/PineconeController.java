@@ -1,5 +1,6 @@
 package juby.invest.domain.pinecone.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import juby.invest.domain.pinecone.dto.PineconeResDto;
 import juby.invest.domain.pinecone.exception.code.PineconeSuccessCode;
 import juby.invest.domain.pinecone.service.PineconeService;
@@ -11,7 +12,7 @@ import org.openapitools.db_data.client.ApiException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/v1/vectordb")
+@RequestMapping("/api/vectordb")
 @RequiredArgsConstructor
 public class PineconeController {
 
@@ -38,12 +39,11 @@ public class PineconeController {
      * @throws ApiException pinecone 예외 처리
      */
     @GetMapping("/search")
-    public ApiResponse<Void> searchData(
+    public ApiResponse<PineconeResDto.SearchSuccess> searchData(
             @RequestParam("question") String question,
             @RequestParam("stockName") String stockName) throws ApiException {
         BaseSuccessCode successCode = PineconeSuccessCode.OK;
-        pineconeService.searchData(question, stockName);
-        return ApiResponse.onSuccess(successCode, null);
 
+        return ApiResponse.onSuccess(successCode, pineconeService.searchData(question, stockName));
     }
 }

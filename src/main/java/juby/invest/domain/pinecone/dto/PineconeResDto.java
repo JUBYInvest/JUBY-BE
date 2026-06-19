@@ -10,8 +10,20 @@ public class PineconeResDto {
 
     @Builder
     public record UpsertSuccess(
-
             NewsResDto.NewsResponse newsResponse,
             LocalDateTime upsertTime
     ){}
+
+    @Builder
+    public record SearchSuccess(
+            List<News> newsList
+    ){
+        @Builder
+        public record News(
+                String title,
+                String stockName,
+                String description,
+                String pubDate
+        ){}
+    }
 }
