@@ -42,7 +42,7 @@ public class BacktestService {
     public BacktestResDto.GetInfo runStrategy(BacktestReqDto.ReqInfo dto){
 
         String stockCode = dto.stockCode();
-        String strategyName = dto.strategyName();
+        int investType = dto.investType();
         LocalDate startDate = dto.startDate();
         LocalDate endDate = dto.endDate();
 
@@ -55,7 +55,17 @@ public class BacktestService {
 
         BarSeries series = barSeriesConverter.convert(dailyPriceList, stockCode);
 
-        // 전략 구축 및 실행
+        // 실행할 전략명 찾기
+        String strategyName = switch (investType) {
+            case 1 -> "rsiReversionStrategy";
+            case 2 -> "bollingerBandStrategy";
+            case 3 -> "smaStrategy";
+            case 4 -> "macdTrendStrategy";
+            case 5 -> "breakoutStrategy";
+            default -> throw new BacktestException(BacktestErrorCode.INVEST_TYPE_NOT_FOUND);
+        };
+
+        // 전략 구축
         Strategy strategy = null;
         try {
             strategy = strategyMap.get(strategyName).strategy(series);
@@ -63,6 +73,7 @@ public class BacktestService {
             throw new BacktestException(BacktestErrorCode.STRATEGY_NOT_FOUND);
         }
 
+        // 구축된 전략을 바탕으로 백테스팅 수행
         BarSeriesManager manager = new BarSeriesManager(series);
         TradingRecord record = manager.run(strategy);
 

@@ -14,7 +14,6 @@ import org.ta4j.core.rules.CrossedUpIndicatorRule;
 
 @Slf4j
 @Component
-@Order(2)
 public class EmaStrategy implements BacktestStrategy{
 
     /**
