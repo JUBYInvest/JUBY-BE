@@ -80,6 +80,7 @@ public class BacktestService {
         System.out.println("체결된 포지션: " + record.getPositionCount());
         System.out.println("포지션 entry 한 날짜" + record.getLastEntry());
         System.out.println("포지션 exit 한 날짜" + record.getLastExit());
+
         // 결과 지표 분석
         List<BigDecimal> analysisList = analysisCriterionConverter.converter(series, record);
 

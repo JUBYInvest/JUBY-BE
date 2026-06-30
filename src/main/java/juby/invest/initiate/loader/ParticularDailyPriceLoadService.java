@@ -30,13 +30,21 @@ public class ParticularDailyPriceLoadService {
 
     public void getDailyPrice(String date) throws InterruptedException {
 
+        if (dailyPriceRepository.existsByDate(LocalDate.parse(date, dateTimeFormatter))){
+            log.info("날짜: {}에 해당하는 데이터가 이미 존재합니다.", date);
+            return;
+        }
+
         log.info("모든 종목의 특정 날짜 OHLVC 데이터를 DB에 삽입하는 작업 시작");
 
         List<Stock> stocks = stockRepository.findAll();
 
         for (Stock stock : stocks){
+
             try {
-                List<PeriodDailyPriceDto.Output> response = marketService.getPeriodStockPrice(stock.getStockCode(), date, date);
+                PeriodDailyPriceDto.Output response = marketService.getPeriodStockPrice(stock.getStockCode(), date, date).getFirst();
+
+                log.info("날짜: {}, 종목: {} OHLVC 데이터 불러오기 완료", date, stock.getStockName());
 
                 dailyPriceRepository.save(DailyPrice.builder()
                                 .stock(stock)
@@ -47,14 +55,14 @@ public class ParticularDailyPriceLoadService {
                                 .closePrice(Integer.parseInt(response.closePrice()))
                                 .volume(Integer.parseInt(response.volume()))
                                 .build());
-                log.info("{}: 삽입 완료", stock.getStockName());
             } catch (Exception e){
-                log.info("{}: 삽입 실패", stock.getStockName());
+                log.error("날짜: {}, 종목: {} OHLVC 데이터 불러오기 실패", date, stock.getStockName(), e);
                 throw new ProjectException(GeneralErrorCode.BAD_REQUEST);
             }
 
-
             Thread.sleep(1200);
         }
+
+        log.info("---- 모든 날짜 수집 완료 ----");
     }
 }
