@@ -4,11 +4,13 @@ import jakarta.persistence.*;
 import juby.invest.domain.member.enums.InvestPersonality;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Table(name = "personality")
 @Entity
 @Builder
+@Getter
 @AllArgsConstructor
 @NoArgsConstructor
 public class Personality {
