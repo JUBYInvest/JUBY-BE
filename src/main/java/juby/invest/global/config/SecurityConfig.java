@@ -34,7 +34,7 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/error/**",
-            "/api/market/**",
+            "/api/**",
             "/mypage.html" // mypage 정보 열람 테스트용
     };
 

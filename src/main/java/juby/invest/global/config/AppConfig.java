@@ -1,6 +1,8 @@
 package juby.invest.global.config;
 
+import io.pinecone.clients.Index;
 import io.pinecone.configs.PineconeConfig;
+import io.pinecone.configs.PineconeConnection;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,9 +44,14 @@ public class AppConfig {
                 .build();
     }
 
-    // Pinecone 설정
+    // Pinecone 연결
     @Bean
-    public PineconeConfig pineconeConfig(){
-        return new PineconeConfig(pineconeAppKey);
+    public Index pineconeConfig(){
+        PineconeConfig config = new PineconeConfig(pineconeAppKey);
+        config.setHost("juby-lovh45p.svc.aped-4627-b74a.pinecone.io");
+
+        PineconeConnection connection = new PineconeConnection(config);
+
+        return new Index(config, connection, "juby");
     }
 }

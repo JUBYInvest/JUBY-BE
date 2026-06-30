@@ -31,7 +31,7 @@ public class DailyPriceScheduler {
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     @Profile("dev") // EC2에서만 실행
-    @Scheduled(cron = "0 35 15 * * MON-FRI", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 10 22 * * MON-FRI", zone = "Asia/Seoul")
     public void getDailyPrice() throws InterruptedException {
 
         // 장날/휴장일인지 먼저 파악
@@ -74,7 +74,7 @@ public class DailyPriceScheduler {
             } catch (Exception e) {
                 log.error("스케줄러 동작 중 문제 발생: {}, 종목명: {}", e, stock.getStockName());
             }
-            Thread.sleep(100); // 실전 도메인 API 호출 제한: 1초당 18건
+            Thread.sleep(500); // 실전 도메인 API 호출 제한: 1초당 18건
         }
 
         if (!dailyPrices.isEmpty()){
