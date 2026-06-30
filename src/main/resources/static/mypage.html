@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>마이페이지</title>
+</head>
+<body>
+<h1>마이페이지</h1>
+
+<p>이름: <span id="name"></span></p>
+<p>이메일: <span id="email"></span></p>
+<p>생일: <span id="birth"></span></p>
+<p>소셜 로그인: <span id="socialType"></span></p>
+
+<button onclick="deleteMember()">회원 탈퇴</button>
+
+<script>
+    const accessToken = "accesstoken 기입!"; // 소셜로그인하고 나온 accesstoken 기입
+
+    async function loadMyPage() {
+        const response = await fetch("/api/member/info", {
+            method: "GET",
+            headers: {
+                "Authorization": "Bearer " + accessToken
+            }
+        });
+
+        const data = await response.json();
+
+        if (!data.isSuccess) {
+            alert(data.message);
+            return;
+        }
+
+        document.getElementById("name").textContent = data.result.name;
+        document.getElementById("email").textContent = data.result.email;
+        document.getElementById("birth").textContent = data.result.birth;
+        document.getElementById("socialType").textContent = data.result.socialType;
+    }
+
+    async function deleteMember() {
+        if (!confirm("정말 탈퇴하시겠습니까?")) return;
+
+        const response = await fetch("/api/member", {
+            method: "DELETE",
+            headers: {
+                "Authorization": "Bearer " + accessToken
+            }
+        });
+
+        const data = await response.json();
+        alert(data.message);
+    }
+
+    loadMyPage();
+</script>
+</body>
+</html>
