@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
@@ -31,4 +32,9 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
     boolean existsByDate(LocalDate date);
 
     boolean existsByStock_StockCodeAndDate(String stockStockCode, LocalDate date);
+
+    Optional<DailyPrice> findTopByStockOrderByDateDesc(Stock stock);
+
+    @Query("SELECT MAX(dp.date) FROM DailyPrice dp WHERE dp.stock = :stock")
+    LocalDate findMaxDateByStock(Stock stock);
 }
