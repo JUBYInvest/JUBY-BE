@@ -15,7 +15,7 @@
 <button onclick="deleteMember()">회원 탈퇴</button>
 
 <script>
-    const accessToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI2IiwidHlwIjoiYWNjZXNzIiwicm9sZSI6IlVTRVIiLCJuYW1lIjoi6rmA7Jyk7J6sIiwiaWF0IjoxNzgyODAzODUxLCJleHAiOjE3ODI4MDU2NTF9.vybGRdgZz2g8wtZQJB2VNDOdI6nH5jq-7Cv_8F67XC0"; // 소셜로그인하고 나온 accesstoken 기입
+    const accessToken = ""; // 소셜로그인하고 나온 accesstoken 기입
 
     async function loadMyPage() {
         const response = await fetch("/api/member/info", {
