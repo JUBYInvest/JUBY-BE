@@ -16,7 +16,7 @@ public class Initiator {
     private final StockLoadService stockLoadService;
     private final DailyPriceLoadService dailyPriceLoadService;
 
-//    @EventListener(ApplicationReadyEvent.class)
+    @EventListener(ApplicationReadyEvent.class)
     public void initiate(){
 
         try {
