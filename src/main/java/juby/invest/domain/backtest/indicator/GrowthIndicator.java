@@ -10,10 +10,6 @@ public class GrowthIndicator {
 
     public BacktestResDto.QuantScoringResponse.Growth indicate(BarSeries series, TradingRecord record){
 
-        return BacktestResDto.QuantScoringResponse.Growth.builder()
-                .momentRatio()
-                .positionCount()
-                .volGrowthRatio()
-                .build();
+        return null;
     }
 }

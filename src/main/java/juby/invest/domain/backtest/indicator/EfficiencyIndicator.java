@@ -10,10 +10,6 @@ public class EfficiencyIndicator {
 
     public BacktestResDto.QuantScoringResponse.Effect indicate(BarSeries series, TradingRecord record){
 
-        return BacktestResDto.QuantScoringResponse.Effect.builder()
-                .calmarRatio()
-                .sharpeRatio()
-                .sortinoRatio()
-                .build();
+        return null;
     }
 }

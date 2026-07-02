@@ -10,10 +10,6 @@ public class ProfitIndicator {
 
     public BacktestResDto.QuantScoringResponse.Profit indicate(BarSeries series, TradingRecord record){
 
-        return BacktestResDto.QuantScoringResponse.Profit.builder()
-                .annualReturn()
-                .avgTradeReturn()
-                .totalReturn()
-                .build();
+        return null;
     }
 }

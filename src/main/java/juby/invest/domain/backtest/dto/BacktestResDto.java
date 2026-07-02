@@ -32,9 +32,9 @@ public class BacktestResDto {
     ){
         @Builder
         public record Stable(
-                Num mdd,
-                Num volatility,
-                Num dVolatility
+                BigDecimal mdd,
+                BigDecimal volatility,
+                BigDecimal dVolatility
         ){}
         @Builder
         public record Profit(

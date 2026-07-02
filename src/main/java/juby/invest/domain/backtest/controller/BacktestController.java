@@ -31,7 +31,7 @@ public class BacktestController {
             description = "종목코드, 성향번호(1:안정형, 2:안정추구형, 3:위험중립형, 4:적극투자형, 5:공격투자형), " +
                     "시작날짜, 끝날짜를 전달해주면 백테스트를 실행하고 알맞은 지표를 반환한다.")
     @GetMapping("/run")
-    public ApiResponse<BacktestResDto.GetInfo> convert(
+    public ApiResponse<BacktestResDto.QuantScoringResponse> convert(
             @Valid @ModelAttribute BacktestReqDto.ReqInfo dto){
 
         BaseSuccessCode successCode = BacktestSuccessCode.OK;
