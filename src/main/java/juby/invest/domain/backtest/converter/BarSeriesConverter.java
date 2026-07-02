@@ -17,11 +17,11 @@ public class BarSeriesConverter {
 
     /***
      * 기능: List<DailyPrice> -> BarSeries로 변환
-     * @param dailyPriceList 특정 종목의 각 날짜의 OHLVC 데이터
+     * @param dailyPriceList 한 종목 기간별 OHLVC 데이터
      * @param stockCode 종목 코드 (ex: 005930)
      * @return BarSeries
      */
-    public BarSeries convert(List<DailyPrice> dailyPriceList, String stockCode){
+    public BarSeries barSeriesConverter(List<DailyPrice> dailyPriceList, String stockCode){
 
         BarSeries series = new BaseBarSeriesBuilder().withName(stockCode).build();
 
@@ -41,7 +41,7 @@ public class BarSeriesConverter {
                         .volume(dailyPrice.getVolume())
                         .build());
             }
-            log.info("BarSeries: {}", series.getFirstBar());
+            log.info("BarSeries 변환 성공");
 
         } catch (Exception e){
             throw new RuntimeException("BarSeries 변환 에러 발생." + e.getMessage());

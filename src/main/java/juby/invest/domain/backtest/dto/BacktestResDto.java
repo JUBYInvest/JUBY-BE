@@ -1,6 +1,7 @@
 package juby.invest.domain.backtest.dto;
 
 import lombok.Builder;
+import org.ta4j.core.num.Num;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,27 +30,28 @@ public class BacktestResDto {
             Effect effect,
             Growth growth
     ){
+        @Builder
         public record Stable(
-                BigDecimal mdd,
-                BigDecimal volatility,
-                BigDecimal dVolatility
+                Num mdd,
+                Num volatility,
+                Num dVolatility
         ){}
-
+        @Builder
         public record Profit(
-                BigDecimal totalReturn,
-                BigDecimal annualReturn,
-                BigDecimal avgTradeReturn
+                Num totalReturn,
+                Num annualReturn,
+                Num avgTradeReturn
         ){}
-
+        @Builder
         public record Effect(
-                BigDecimal sharpeRatio, // 전체 변동성 대비 수익률
-                BigDecimal sortinoRatio, // 하방위험 대비 수익률
-                BigDecimal calmarRatio // MDD 대비 수익률
+                Num sharpeRatio, // 전체 변동성 대비 수익률
+                Num sortinoRatio, // 하방위험 대비 수익률
+                Num calmarRatio // MDD 대비 수익률
         ){}
-
+        @Builder
         public record Growth(
-                BigDecimal momentRatio, // 모멘텀 수익률
-                BigDecimal volGrowthRatio, // 거래량 증가율
+                Num momentRatio, // 모멘텀 수익률
+                Num volGrowthRatio, // 거래량 증가율
                 int positionCount // 거래횟수
         ){}
     }

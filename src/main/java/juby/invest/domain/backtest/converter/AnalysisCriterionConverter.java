@@ -1,5 +1,11 @@
 package juby.invest.domain.backtest.converter;
 
+import juby.invest.domain.backtest.dto.BacktestResDto;
+import juby.invest.domain.backtest.indicator.EfficiencyIndicator;
+import juby.invest.domain.backtest.indicator.GrowthIndicator;
+import juby.invest.domain.backtest.indicator.ProfitIndicator;
+import juby.invest.domain.backtest.indicator.StableIndicator;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.ta4j.core.BarSeries;
@@ -12,17 +18,31 @@ import org.ta4j.core.criteria.pnl.NetReturnCriterion;
 import java.math.BigDecimal;
 import java.util.List;
 
+@RequiredArgsConstructor
 @Component
 @Slf4j
 public class AnalysisCriterionConverter {
 
-    public List<BigDecimal> converter(BarSeries series, TradingRecord record){
-        BigDecimal totalReturn = BigDecimal.valueOf(new NetReturnCriterion().calculate(series, record).doubleValue());
-        // 연평균 수익률 추후 추가
-        BigDecimal sharpeRatio = BigDecimal.valueOf(new SharpeRatioCriterion().calculate(series, record).doubleValue());
-        BigDecimal stdDeviation = BigDecimal.valueOf(new StandardDeviationCriterion(new NetReturnCriterion()).calculate(series, record).doubleValue());
-        BigDecimal maxDrawdown = BigDecimal.valueOf(new MaximumDrawdownCriterion().calculate(series, record).doubleValue());
+    private final EfficiencyIndicator efficiencyIndicator;
+    private final GrowthIndicator growthIndicator;
+    private final ProfitIndicator profitIndicator;
+    private final StableIndicator stableIndicator;
 
-        return List.of(totalReturn, totalReturn, sharpeRatio, stdDeviation, maxDrawdown);
+    public BacktestResDto.QuantScoringResponse converter(
+            String stockCode, int investType, BarSeries series, TradingRecord record){
+
+        BacktestResDto.QuantScoringResponse.Stable stable = stableIndicator.indicate(series, record);
+        BacktestResDto.QuantScoringResponse.Profit profit = profitIndicator.indicate(series, record);
+        BacktestResDto.QuantScoringResponse.Effect effect = efficiencyIndicator.indicate(series, record);
+        BacktestResDto.QuantScoringResponse.Growth growth = growthIndicator.indicate(series, record);
+
+        return BacktestResDto.QuantScoringResponse.builder()
+                .stockCode(stockCode)
+                .investType(investType)
+                .stable(stable)
+                .growth(growth)
+                .effect(effect)
+                .profit(profit)
+                .build();
     }
 }

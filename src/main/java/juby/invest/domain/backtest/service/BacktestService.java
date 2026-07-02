@@ -4,6 +4,10 @@ import jakarta.transaction.Transactional;
 import juby.invest.domain.backtest.dto.BacktestReqDto;
 import juby.invest.domain.backtest.exception.BacktestException;
 import juby.invest.domain.backtest.exception.code.BacktestErrorCode;
+import juby.invest.domain.backtest.indicator.EfficiencyIndicator;
+import juby.invest.domain.backtest.indicator.GrowthIndicator;
+import juby.invest.domain.backtest.indicator.ProfitIndicator;
+import juby.invest.domain.backtest.indicator.StableIndicator;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.backtest.converter.AnalysisCriterionConverter;
@@ -30,8 +34,8 @@ public class BacktestService {
 
     private final BarSeriesConverter barSeriesConverter;
     private final DailyPriceRepository dailyPriceRepository;
-    private final AnalysisCriterionConverter analysisCriterionConverter;
     private final Map<String, BacktestStrategy> strategyMap;
+    private final AnalysisCriterionConverter analysisCriterionConverter;
 
     /***
      * 전달받은 종목코드, 전략, 시작일, 종료일을 기준으로 백테스트 전략을 수행한다.
@@ -39,7 +43,7 @@ public class BacktestService {
      * @return BacktestResDto.GetInfo
      */
     @Transactional
-    public BacktestResDto.GetInfo runStrategy(BacktestReqDto.ReqInfo dto){
+    public BacktestResDto.QuantScoringResponse runStrategy(BacktestReqDto.ReqInfo dto){
 
         String stockCode = dto.stockCode();
         int investType = dto.investType();
@@ -53,20 +57,20 @@ public class BacktestService {
             throw new BacktestException(BacktestErrorCode.STOCKCODE_NOT_FOUND);
         }
 
-        BarSeries series = barSeriesConverter.convert(dailyPriceList, stockCode);
+        BarSeries series = barSeriesConverter.barSeriesConverter(dailyPriceList, stockCode);
 
         // 실행할 전략명 찾기
         String strategyName = switch (investType) {
-            case 1 -> "rsiReversionStrategy";
-            case 2 -> "bollingerBandStrategy";
-            case 3 -> "smaStrategy";
-            case 4 -> "macdTrendStrategy";
-            case 5 -> "breakoutStrategy";
+            case 1 -> "rsiReversionStrategy"; // 안정형 -> RSI역추세 전략
+            case 2 -> "bollingerBandStrategy"; // 안정추구형 -> 볼린저밴드 전략
+            case 3 -> "smaStrategy"; // 위험중립형 -> SMA이평선 전략
+            case 4 -> "macdTrendStrategy"; // 적극투자형 -> MACD 추세추종 전략
+            case 5 -> "breakoutStrategy"; // 공격투자형 -> 돌파 전략
             default -> throw new BacktestException(BacktestErrorCode.INVEST_TYPE_NOT_FOUND);
         };
 
         // 전략 구축
-        Strategy strategy = null;
+        Strategy strategy;
         try {
             strategy = strategyMap.get(strategyName).strategy(series);
         } catch (NullPointerException e){
@@ -77,22 +81,10 @@ public class BacktestService {
         BarSeriesManager manager = new BarSeriesManager(series);
         TradingRecord record = manager.run(strategy);
 
-        System.out.println("체결된 포지션: " + record.getPositionCount());
-        System.out.println("포지션 entry 한 날짜" + record.getLastEntry());
-        System.out.println("포지션 exit 한 날짜" + record.getLastExit());
+        log.info("체결된 포지션 개수: {}", record.getPositionCount());
+        log.info("포지션 내역: {}", record.getPositions());
 
-        // 결과 지표 분석
-        List<BigDecimal> analysisList = analysisCriterionConverter.converter(series, record);
-
-        return BacktestResDto.GetInfo.builder()
-                .stockCode(stockCode)
-                .strategyName(strategy.getName())
-                .totalReturn(analysisList.get(0))
-                .annualizedReturn(analysisList.get(1))
-                .positionCount(record.getPositionCount())
-                .sharpeRatio(analysisList.get(2))
-                .stdDeviation(analysisList.get(3))
-                .maxDrawdown(analysisList.get(4))
-                .build();
+        // 평가 지표 산출 (안정성, 수익성, 효율성, 성장성)
+        return analysisCriterionConverter.converter(stockCode, investType, series, record);
     }
 }
