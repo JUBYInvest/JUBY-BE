@@ -1,6 +1,5 @@
 package juby.invest.initiate.loader;
 
-import io.netty.handler.codec.DateFormatter;
 import juby.invest.domain.kis.market.dto.PeriodDailyPriceDto;
 import juby.invest.domain.kis.market.service.MarketService;
 import juby.invest.domain.stock.entity.DailyPrice;
@@ -11,12 +10,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.text.DateFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 
 @Slf4j
 @Component
@@ -26,9 +23,25 @@ public class DailyPriceLoadService {
     private final StockRepository stockRepository;
     private final DailyPriceRepository dailyPriceRepository;
     private final MarketService marketService;
-    private static final List<String> dateStartList = List.of("20250101", "20250401", "20250701", "20251001", "20260101", "20260401");
-    private static final List<String> dateEndList = List.of("20250331", "20250630", "20250930", "20251231", "20260331", "20260612");
+    private static final LocalDate LOAD_START_DATE = LocalDate.of(2024, 10, 1);
     private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    private List<String[]> generateDateRanges(LocalDate startDate) {
+        List<String[]> ranges = new ArrayList<>();
+        LocalDate current = startDate;
+        LocalDate today = LocalDate.now();
+
+        while (current.isBefore(today)) {
+            LocalDate chunkEnd = current.plusMonths(3).minusDays(1);
+            if (chunkEnd.isAfter(today)) {
+                chunkEnd = today;
+            }
+            ranges.add(new String[]{current.format(formatter), chunkEnd.format(formatter)});
+            current = chunkEnd.plusDays(1);
+        }
+
+        return ranges;
+    }
 
     /***
      * 함수 기능: top100개 종목의 기간별 정보들을 조회하여 DB에 저장한다.
@@ -38,16 +51,20 @@ public class DailyPriceLoadService {
 
         for (Stock stock : stockList){
 
-            if (!dailyPriceRepository.findAllByStock(stock).isEmpty()){
-                log.info("이미 DB에 저장된 종목이어서 건너뜁니다.");
+            LocalDate lastDate = dailyPriceRepository.findMaxDateByStock(stock);
+            LocalDate startDate = (lastDate != null) ? lastDate.plusDays(1) : LOAD_START_DATE;
+
+            if (!startDate.isBefore(LocalDate.now())) {
+                log.info("종목명: {} - 이미 최신 데이터까지 적재 완료.", stock.getStockName());
                 continue;
             }
 
+            List<String[]> stockDateRanges = generateDateRanges(startDate);
             List<PeriodDailyPriceDto.Output> totalPeriodDailyPrice = new ArrayList<>();
 
-            for (int i = 0; i < dateStartList.size(); i++){
+            for (String[] range : stockDateRanges){
                 try {
-                    List<PeriodDailyPriceDto.Output> periodDailyPrice = marketService.getPeriodStockPrice(stock.getStockCode(), dateStartList.get(i), dateEndList.get(i));
+                    List<PeriodDailyPriceDto.Output> periodDailyPrice = marketService.getPeriodStockPrice(stock.getStockCode(), range[0], range[1]);
                     totalPeriodDailyPrice.addAll(periodDailyPrice);
                     Thread.sleep(1200);
                 } catch (Exception e){
@@ -69,7 +86,7 @@ public class DailyPriceLoadService {
                                     .volume(Integer.parseInt(data.volume()))
                                     .build()).toList();
                     dailyPriceRepository.saveAll(dailyPriceList);
-                    log.info("종목명: {} 2025-01-01 ~ 2026-06-12 일봉 저장 완료", stock.getStockName());
+                    log.info("종목명: {} 2024-10-01 ~ 오늘까지 일봉 저장 완료", stock.getStockName());
 
                 } catch (Exception e){
                     log.error("OHLVC 데이터를 DB 저장 중 오류 발생", e);
