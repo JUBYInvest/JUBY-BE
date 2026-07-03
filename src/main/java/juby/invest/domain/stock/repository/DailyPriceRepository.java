@@ -33,6 +33,8 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
     boolean existsByStock_StockCodeAndDate(String stockStockCode, LocalDate date);
 
+    boolean findByDate(LocalDate date);
+
     Optional<DailyPrice> findTopByStockOrderByDateDesc(Stock stock);
 
     @Query("SELECT MAX(dp.date) FROM DailyPrice dp WHERE dp.stock = :stock")
