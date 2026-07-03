@@ -15,6 +15,14 @@ public class PineconeResDto {
     ){}
 
     @Builder
+    public record BulkUpsertSuccess(
+            int totalCount,
+            int successCount,
+            List<String> failedStocks,
+            LocalDateTime upsertTime
+    ){}
+
+    @Builder
     public record SearchSuccess(
             List<News> newsList
     ){

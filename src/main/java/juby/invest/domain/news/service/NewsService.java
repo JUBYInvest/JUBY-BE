@@ -19,6 +19,7 @@ import java.util.*;
 @Slf4j
 public class NewsService {
 
+    private static final int DISPLAY_COUNT = 20; //20개 뉴스 검색
     private final RestClient newsSearchRestClient;
     private final NewsConverter newsConverter;
 
@@ -32,6 +33,7 @@ public class NewsService {
         NewsResDto.NewsResponse response = newsSearchRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .queryParam("query", query)
+                        .queryParam("display", DISPLAY_COUNT)
                         .build())
                 .retrieve()
                 .body(NewsResDto.NewsResponse.class);

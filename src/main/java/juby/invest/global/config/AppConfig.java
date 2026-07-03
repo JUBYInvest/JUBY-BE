@@ -48,7 +48,7 @@ public class AppConfig {
     @Bean
     public Index pineconeConfig(){
         PineconeConfig config = new PineconeConfig(pineconeAppKey);
-        config.setHost("juby-lovh45p.svc.aped-4627-b74a.pinecone.io");
+        config.setHost("juby-22wov83.svc.aped-4627-b74a.pinecone.io");
 
         PineconeConnection connection = new PineconeConnection(config);
 

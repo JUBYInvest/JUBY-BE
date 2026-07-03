@@ -14,6 +14,8 @@ import juby.invest.domain.news.dto.NewsResDto;
 import juby.invest.domain.news.service.NewsService;
 import juby.invest.domain.pinecone.converter.PineconeConverter;
 import juby.invest.domain.pinecone.dto.PineconeResDto;
+import juby.invest.domain.stock.entity.Stock;
+import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openapitools.db_data.client.ApiException;
@@ -33,6 +35,7 @@ public class PineconeService {
     private final Index pineconeConfig;
     private final PineconeConverter pineconeConverter;
     private final NewsService newsService;
+    private final StockRepository stockRepository;
 
     /***
      * 함수 기능: 1. 주기적으로 종목 리스트를 순회하며, 네이버 뉴스 API를 호출한다.
@@ -50,6 +53,35 @@ public class PineconeService {
 
         return PineconeResDto.UpsertSuccess.builder()
                 .newsResponse(newsResponse)
+                .upsertTime(LocalDateTime.now())
+                .build();
+    }
+
+    /***
+     * 함수 기능: 1. DB에 저장된 전체 종목(기본 100개)을 순회하며 각 종목명을 query로 뉴스를 적재한다.
+     *          2. 종목별 적재 중 예외가 발생해도 나머지 종목 적재는 계속 진행한다.
+     * @return 전체/성공 건수와 실패한 종목명 목록
+     */
+    public PineconeResDto.BulkUpsertSuccess upsertAllStockNews(){
+
+        List<Stock> stocks = stockRepository.findAll();
+        List<String> failedStocks = new ArrayList<>();
+        int successCount = 0;
+
+        for (Stock stock : stocks){
+            try {
+                upsertData(stock.getStockName());
+                successCount++;
+            } catch (Exception e){
+                log.error("종목 [{}] 뉴스 적재 실패", stock.getStockName(), e);
+                failedStocks.add(stock.getStockName());
+            }
+        }
+
+        return PineconeResDto.BulkUpsertSuccess.builder()
+                .totalCount(stocks.size())
+                .successCount(successCount)
+                .failedStocks(failedStocks)
                 .upsertTime(LocalDateTime.now())
                 .build();
     }
