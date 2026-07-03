@@ -1,6 +1,7 @@
 package juby.invest.domain.kis.market.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Builder;
 
 import java.util.List;
 
@@ -9,6 +10,7 @@ public record PeriodDailyPriceDto(
         @JsonProperty("msg1") String message,
         @JsonProperty("output2") List<Output> output
 ){
+    @Builder
     public record Output(
         @JsonProperty("stck_bsop_date") String date,
         @JsonProperty("stck_clpr") String closePrice,

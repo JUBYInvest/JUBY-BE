@@ -12,7 +12,7 @@ import org.ta4j.core.rules.CrossedDownIndicatorRule;
 import org.ta4j.core.rules.CrossedUpIndicatorRule;
 
 @Component
-@Order(3)
+@Order(1)
 public class RsiReversionStrategy implements BacktestStrategy {
 
     @Override
@@ -20,8 +20,8 @@ public class RsiReversionStrategy implements BacktestStrategy {
         ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
         RSIIndicator rsi = new RSIIndicator(closePrice, 14);
 
-        Rule entryRule = new CrossedUpIndicatorRule(rsi, 40);
-        Rule exitRule = new CrossedDownIndicatorRule(rsi, 70);
+        Rule entryRule = new CrossedUpIndicatorRule(rsi, 40); // 매수 조건
+        Rule exitRule = new CrossedDownIndicatorRule(rsi, 70); // 매도 조건
 
         return new BaseStrategy("RSI 역추세 전략", entryRule, exitRule);
     }
