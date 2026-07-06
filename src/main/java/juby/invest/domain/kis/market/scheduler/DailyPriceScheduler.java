@@ -23,6 +23,7 @@ import java.util.List;
 @Component
 @Slf4j
 @RequiredArgsConstructor
+@Profile("dev") // EC2에서만 실행
 public class DailyPriceScheduler {
 
     private final StockRepository stockRepository;
@@ -30,7 +31,6 @@ public class DailyPriceScheduler {
     private final MarketService marketService;
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    @Profile("dev") // EC2에서만 실행
     @Scheduled(cron = "0 10 22 * * MON-FRI", zone = "Asia/Seoul")
     public void getDailyPrice() throws InterruptedException {
 
