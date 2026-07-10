@@ -32,6 +32,11 @@ import java.util.*;
 @Slf4j
 public class PineconeService {
 
+    // Pinecone integrated-embedding upsert_records 1회 호출당 최대 레코드 수 제한(96건)에 맞춘 청크 크기
+    private static final int UPSERT_CHUNK_SIZE = 96;
+    // 네이버 뉴스 API 초당 호출 제한(429)을 예방하기 위한 종목 간 호출 간격
+    private static final long NAVER_API_CALL_DELAY_MS = 200;
+
     private final Index pineconeConfig;
     private final PineconeConverter pineconeConverter;
     private final NewsService newsService;
@@ -49,7 +54,12 @@ public class PineconeService {
         NewsResDto.NewsResponse newsResponse = newsService.callNewsApi(query);
         List<Map<String, String>> upsertRecords = pineconeConverter.makeUpsertRecords(newsResponse, query);
 
-        pineconeConfig.upsertRecords("naver_news", upsertRecords);
+        try {
+            pineconeConfig.upsertRecords("naver_news", upsertRecords);
+        } catch (ApiException e){
+            log.error("vectorDB upsert 실패. query={}, 레코드 {}건", query, upsertRecords.size(), e);
+            throw e;
+        }
 
         return PineconeResDto.UpsertSuccess.builder()
                 .newsResponse(newsResponse)
@@ -58,8 +68,9 @@ public class PineconeService {
     }
 
     /***
-     * 함수 기능: 1. DB에 저장된 전체 종목(기본 100개)을 순회하며 각 종목명을 query로 뉴스를 적재한다.
-     *          2. 종목별 적재 중 예외가 발생해도 나머지 종목 적재는 계속 진행한다.
+     * 함수 기능: 1. DB에 저장된 전체 종목(기본 100개)을 순회하며 각 종목명을 query로 뉴스를 조회한다.
+     *          2. 조회된 레코드를 종목 단위로 upsert하지 않고 청크(UPSERT_CHUNK_SIZE)로 모아 upsertRecords 호출 횟수를 줄인다.
+     *          3. 종목별 조회/청크 upsert 중 예외가 발생해도 나머지 종목 적재는 계속 진행한다.
      * @return 전체/성공 건수와 실패한 종목명 목록
      */
     public PineconeResDto.BulkUpsertSuccess upsertAllStockNews(){
@@ -68,14 +79,29 @@ public class PineconeService {
         List<String> failedStocks = new ArrayList<>();
         int successCount = 0;
 
+        List<Map<String, String>> buffer = new ArrayList<>();
+        List<String> pendingStocks = new ArrayList<>();
+
         for (Stock stock : stocks){
             try {
-                upsertData(stock.getStockName());
-                successCount++;
+                NewsResDto.NewsResponse newsResponse = newsService.callNewsApi(stock.getStockName());
+                buffer.addAll(pineconeConverter.makeUpsertRecords(newsResponse, stock.getStockName()));
+                pendingStocks.add(stock.getStockName());
             } catch (Exception e){
-                log.error("종목 [{}] 뉴스 적재 실패", stock.getStockName(), e);
+                log.error("종목 [{}] 뉴스 조회 실패", stock.getStockName(), e);
                 failedStocks.add(stock.getStockName());
+                continue;
+            } finally {
+                sleep(NAVER_API_CALL_DELAY_MS); // 네이버 API 초당 호출 제한 예방
             }
+
+            if (buffer.size() >= UPSERT_CHUNK_SIZE){
+                successCount += flushChunk(buffer, pendingStocks, failedStocks);
+            }
+        }
+
+        if (!buffer.isEmpty()){
+            successCount += flushChunk(buffer, pendingStocks, failedStocks);
         }
 
         return PineconeResDto.BulkUpsertSuccess.builder()
@@ -84,6 +110,38 @@ public class PineconeService {
                 .failedStocks(failedStocks)
                 .upsertTime(LocalDateTime.now())
                 .build();
+    }
+
+    /***
+     * 함수 기능: 버퍼에 모인 레코드를 한 번의 upsertRecords 호출로 적재하고, 버퍼/대기 목록을 초기화한다.
+     * @param buffer 청크 단위로 모은 upsert 대상 레코드
+     * @param pendingStocks buffer에 기여한 종목명 목록 (성공 시 successCount에 반영, 실패 시 failedStocks에 반영)
+     * @param failedStocks 실패한 종목명을 누적할 목록
+     * @return 이번 청크 upsert로 성공 처리된 종목 수
+     */
+    private int flushChunk(List<Map<String, String>> buffer, List<String> pendingStocks, List<String> failedStocks){
+        int flushedStockCount = pendingStocks.size();
+
+        try {
+            pineconeConfig.upsertRecords("naver_news", new ArrayList<>(buffer));
+        } catch (ApiException e){
+            log.error("뉴스 청크 upsert 실패 (종목 {}건, 레코드 {}건)", flushedStockCount, buffer.size(), e);
+            failedStocks.addAll(pendingStocks);
+            flushedStockCount = 0;
+        }
+
+        buffer.clear();
+        pendingStocks.clear();
+
+        return flushedStockCount;
+    }
+
+    private void sleep(long millis){
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /***
@@ -108,7 +166,13 @@ public class PineconeService {
         filter.put("stock_name", stockName);
 
         // 응답 반환 및 정보 분리
-        SearchRecordsResponse recordsResponse = pineconeConfig.searchRecordsByText(question, "naver_news", fields, 3, filter, null);
+        SearchRecordsResponse recordsResponse;
+        try {
+            recordsResponse = pineconeConfig.searchRecordsByText(question, "naver_news", fields, 3, filter, null);
+        } catch (ApiException e){
+            log.error("vectorDB 검색 실패. question={}, stockName={}", question, stockName, e);
+            throw e;
+        }
         log.info("recordsResposne = {}", recordsResponse);
 
         List<Hit> hits = recordsResponse.getResult().getHits();
