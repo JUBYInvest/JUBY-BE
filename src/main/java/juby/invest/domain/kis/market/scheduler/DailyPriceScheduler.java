@@ -23,7 +23,7 @@ import java.util.List;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-@Profile({"dev"}) // EC2에서만 실행
+@Profile("dev") // EC2에서만 실행
 public class DailyPriceScheduler {
 
     private final StockRepository stockRepository;
