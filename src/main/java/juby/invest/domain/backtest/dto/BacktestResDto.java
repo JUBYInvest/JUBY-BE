@@ -1,10 +1,8 @@
 package juby.invest.domain.backtest.dto;
 
 import lombok.Builder;
-import org.ta4j.core.num.Num;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Builder
 public class BacktestResDto {
@@ -24,11 +22,12 @@ public class BacktestResDto {
     @Builder
     public record QuantScoringResponse(
             String stockCode, // 종목 코드
-            int investType, //
-            Stable stable,
-            Profit profit,
-            Effect effect,
-            Growth growth
+            int investType, // 투자 유형
+            double finalScore, // 최종 적합도
+            Stable stable, // 안정성
+            Profit profit, // 수익성
+            Effect effect, // 효율성
+            Growth growth // 성장성
     ){
         @Builder
         public record Stable(
@@ -38,20 +37,20 @@ public class BacktestResDto {
         ){}
         @Builder
         public record Profit(
-                Num totalReturn,
-                Num annualReturn,
-                Num avgTradeReturn
+                BigDecimal totalReturn,
+                BigDecimal annualReturn,
+                BigDecimal avgTradeReturn
         ){}
         @Builder
         public record Effect(
-                Num sharpeRatio, // 전체 변동성 대비 수익률
-                Num sortinoRatio, // 하방위험 대비 수익률
-                Num calmarRatio // MDD 대비 수익률
+                BigDecimal sharpeRatio, // 전체 변동성 대비 수익률
+                BigDecimal sortinoRatio, // 하방위험 대비 수익률
+                BigDecimal calmarRatio // MDD 대비 수익률
         ){}
         @Builder
         public record Growth(
-                Num momentRatio, // 모멘텀 수익률
-                Num volGrowthRatio, // 거래량 증가율
+                BigDecimal momentumRatio, // 모멘텀 수익률
+                BigDecimal volGrowthRatio, // 거래량 증가율
                 int positionCount // 거래횟수
         ){}
     }
