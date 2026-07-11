@@ -113,19 +113,29 @@ public class PineconeService {
     }
 
     /***
-     * 함수 기능: 버퍼에 모인 레코드를 한 번의 upsertRecords 호출로 적재하고, 버퍼/대기 목록을 초기화한다.
-     * @param buffer 청크 단위로 모은 upsert 대상 레코드
+     * 함수 기능: 버퍼에 모인 레코드를 Pinecone upsert_records 배치 제한(UPSERT_CHUNK_SIZE)에 맞춰 나눠 호출하고, 버퍼/대기 목록을 초기화한다.
+     * @param buffer 청크 단위로 모은 upsert 대상 레코드 (UPSERT_CHUNK_SIZE를 넘을 수 있음)
      * @param pendingStocks buffer에 기여한 종목명 목록 (성공 시 successCount에 반영, 실패 시 failedStocks에 반영)
      * @param failedStocks 실패한 종목명을 누적할 목록
      * @return 이번 청크 upsert로 성공 처리된 종목 수
      */
     private int flushChunk(List<Map<String, String>> buffer, List<String> pendingStocks, List<String> failedStocks){
         int flushedStockCount = pendingStocks.size();
+        boolean allSucceeded = true;
 
-        try {
-            pineconeConfig.upsertRecords("naver_news", new ArrayList<>(buffer));
-        } catch (ApiException e){
-            log.error("뉴스 청크 upsert 실패 (종목 {}건, 레코드 {}건)", flushedStockCount, buffer.size(), e);
+        // buffer가 UPSERT_CHUNK_SIZE(96)를 넘길 수 있으므로, Pinecone 배치 제한을 지키기 위해 항상 재슬라이싱해서 호출한다.
+        for (int i = 0; i < buffer.size(); i += UPSERT_CHUNK_SIZE){
+            List<Map<String, String>> subBatch = buffer.subList(i, Math.min(i + UPSERT_CHUNK_SIZE, buffer.size()));
+
+            try {
+                pineconeConfig.upsertRecords("naver_news", new ArrayList<>(subBatch));
+            } catch (ApiException e){
+                log.error("뉴스 청크 upsert 실패 (레코드 {}건)", subBatch.size(), e);
+                allSucceeded = false;
+            }
+        }
+
+        if (!allSucceeded){
             failedStocks.addAll(pendingStocks);
             flushedStockCount = 0;
         }
