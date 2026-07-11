@@ -4,16 +4,19 @@ import juby.invest.global.apiPayload.ApiResponse;
 import juby.invest.global.apiPayload.code.BaseErrorCode;
 import juby.invest.global.apiPayload.code.GeneralErrorCode;
 import juby.invest.global.apiPayload.exception.ProjectException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+@Slf4j
 @RestControllerAdvice
 public class GeneralExceptionAdvice {
 
     @ExceptionHandler(ProjectException.class)
     public ResponseEntity<ApiResponse<Void>> handleProjectException(ProjectException e){
         BaseErrorCode errorCode = e.getErrorCode();
+        log.error("[ProjectException] code={}, message={}", errorCode.getCode(), errorCode.getMessage(), e);
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.onFailure(errorCode, null));
     }
@@ -26,6 +29,8 @@ public class GeneralExceptionAdvice {
         if (e instanceof org.springframework.security.access.AccessDeniedException){
             throw e;
         }
+
+        log.error("[UnhandledException] {}", e.getMessage(), e);
 
         BaseErrorCode errorCode = GeneralErrorCode.INTERNAL_SERVER_ERROR;
         return ResponseEntity.status(errorCode.getStatus())

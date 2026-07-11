@@ -32,6 +32,16 @@ public class PineconeController {
     }
 
     /***
+     * 함수 기능: DB에 저장된 전체 종목(기본 100개)의 뉴스를 순회하며 vectorDB에 일괄 적재하는 API
+     * @return 공통 응답 양식
+     */
+    @PostMapping("/all")
+    public ApiResponse<PineconeResDto.BulkUpsertSuccess> upsertAllStockNews(){
+        BaseSuccessCode successCode = PineconeSuccessCode.CREATED;
+        return ApiResponse.onSuccess(successCode, pineconeService.upsertAllStockNews());
+    }
+
+    /***
      * 함수 기능: vectorDB에 데이터를 조회하는 API
      * @param question 전체 질문 명세
      * @param stockName 종목
