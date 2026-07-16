@@ -11,4 +11,5 @@ public interface OAuth2Response {
     String getName(); // 사용자 이름
     String getProfileUrl();
     String getBirthday();
+    String getBirthyear();
 }

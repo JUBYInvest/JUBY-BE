@@ -45,4 +45,9 @@ public class KakaoResponse implements OAuth2Response{
     public String getBirthday() {
         return "null";
     }
+
+    @Override
+    public String getBirthyear() {
+        return "null";
+    }
 }
