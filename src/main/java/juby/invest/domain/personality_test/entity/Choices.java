@@ -22,18 +22,6 @@ public class Choices {
     @Column(name = "content")
     private String content;
 
-    @Column(name = "stable_score")
-    private int stableScore;
-
-    @Column(name = "stable_persue_score")
-    private int stablePersueScore;
-
-    @Column(name = "risk_neutral_score")
-    private int riskNeutralScore;
-
-    @Column(name = "active_invest_score")
-    private int activeInvestScore;
-
-    @Column(name = "aggressive_score")
-    private int aggressiveScore;
+    @Column(name = "score")
+    private int score;
 }
