@@ -3,8 +3,8 @@ package juby.invest.domain.member.exception;
 import juby.invest.global.apiPayload.code.BaseErrorCode;
 import juby.invest.global.apiPayload.exception.ProjectException;
 
-public class MemberException extends ProjectException {
-    public MemberException(BaseErrorCode errorCode) {
+public class PersonalityException extends ProjectException {
+    public PersonalityException(BaseErrorCode errorCode) {
         super(errorCode);
     }
 }

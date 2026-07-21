@@ -1,9 +1,9 @@
 package juby.invest.domain.member.enums;
 
 public enum InvestPersonality {
-    STABLE,
-    STABLE_PERSUE,
-    RIST_NEUTRAL,
-    ACTIVE_INVEST,
-    AGGRESSIVE
+    안정형,
+    안정추구형,
+    위험중립형,
+    적극투자형,
+    공격투자형
 }

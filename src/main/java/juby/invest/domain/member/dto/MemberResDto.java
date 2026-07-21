@@ -5,6 +5,8 @@ import juby.invest.domain.member.enums.SocialType;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDate;
+
 public class MemberResDto {
 
     @Getter
@@ -12,7 +14,7 @@ public class MemberResDto {
     public static class MemberInfo {
         private String name;
         private String email;
-        private String birth;
+        private LocalDate birth;
         private SocialType socialType;
     }
 

@@ -5,11 +5,14 @@ import juby.invest.domain.backtest.dto.BacktestReqDto;
 import juby.invest.domain.backtest.exception.BacktestException;
 import juby.invest.domain.backtest.exception.code.BacktestErrorCode;
 import juby.invest.domain.stock.entity.DailyPrice;
+import juby.invest.domain.stock.entity.Stock;
+import juby.invest.domain.stock.exception.code.StockErrorCode;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.backtest.converter.AnalysisCriterionConverter;
 import juby.invest.domain.backtest.converter.BarSeriesConverter;
 import juby.invest.domain.backtest.dto.BacktestResDto;
 import juby.invest.domain.backtest.strategy.BacktestStrategy;
+import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,7 @@ import java.util.Map;
 public class BacktestService {
 
     private final BarSeriesConverter barSeriesConverter;
+    private final StockRepository stockRepository;
     private final DailyPriceRepository dailyPriceRepository;
     private final Map<String, BacktestStrategy> strategyMap;
     private final AnalysisCriterionConverter analysisCriterionConverter;
@@ -41,7 +45,8 @@ public class BacktestService {
     @Transactional
     public BacktestResDto.QuantScoringResponse runStrategy(BacktestReqDto.ReqInfo dto){
 
-        String stockCode = dto.stockCode();
+        String stockCode = stockRepository.findById(dto.stockCode())
+                .orElseThrow(() -> new BacktestException(BacktestErrorCode.STOCKCODE_NOT_FOUND)).getStockCode();
         int investType = dto.investType();
         LocalDate startDate = dto.startDate();
         LocalDate endDate = dto.endDate();
@@ -50,7 +55,7 @@ public class BacktestService {
         List<DailyPrice> dailyPriceList = dailyPriceRepository.findByStock_StockCodeAndDateBetweenOrderByDateAsc(stockCode, startDate, endDate);
 
         if (dailyPriceList.isEmpty()){
-            throw new BacktestException(BacktestErrorCode.STOCKCODE_NOT_FOUND);
+            throw new BacktestException(BacktestErrorCode.DATE_NOT_FOUND);
         }
 
         BarSeries series = barSeriesConverter.barSeriesConverter(dailyPriceList, stockCode);

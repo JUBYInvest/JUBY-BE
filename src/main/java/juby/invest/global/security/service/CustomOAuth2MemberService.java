@@ -18,6 +18,8 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 @Service
@@ -68,11 +70,27 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
                         .providerId(oAuth2Response.getProviderId())
                         .socialType(oAuth2Response.getProvider())
                         .role(Role.USER)
-                        .birth(oAuth2Response.getBirthday())
+                        .birth(parseBirth(oAuth2Response.getBirthyear(), oAuth2Response.getBirthday()))
                         .build()));
 
         log.info("로그인 혹은 DB에 새로 추가된 Member: {}", member);
 
         return new CustomOAuth2User(member.getId(), member.getRole(), member.getName());
+    }
+
+    /***
+     * 함수 기능: 소셜에서 받은 연도(yyyy)와 생일(MM-dd)을 합쳐 LocalDate로 변환한다.
+     *          값이 없는 경우 null을 반환한다.
+     * @param birthyear 생일연도
+     * @param birthday 생일일자
+     * @return 생일
+     */
+    private LocalDate parseBirth(String birthyear, String birthday) {
+        if (birthyear == null || birthyear.isBlank()
+        || birthday == null || birthday.isBlank()){
+            return null;
+        }
+
+        return LocalDate.parse(birthyear + "-" + birthday, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
     }
 }

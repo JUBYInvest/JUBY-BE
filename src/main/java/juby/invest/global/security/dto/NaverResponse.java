@@ -39,4 +39,9 @@ public class NaverResponse implements OAuth2Response{
     public String getBirthday() {
         return attribute.get("birthday").toString();
     }
+
+    @Override
+    public String getBirthyear() {
+        return attribute.get("birthyear").toString();
+    }
 }

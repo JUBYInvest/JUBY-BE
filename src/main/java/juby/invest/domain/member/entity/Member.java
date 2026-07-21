@@ -1,6 +1,7 @@
 package juby.invest.domain.member.entity;
 
 import jakarta.persistence.*;
+import juby.invest.domain.member.dto.ChangeMemberInfo;
 import juby.invest.domain.member.enums.InvestPersonality;
 import juby.invest.domain.member.enums.Role;
 import juby.invest.domain.member.enums.SocialType;
@@ -9,8 +10,8 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Data
 @Builder
+@Getter
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "member")
@@ -31,7 +32,7 @@ public class Member {
     private String name;
 
     @Column(name = "birth")
-    private String birth;
+    private LocalDate birth;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
@@ -44,4 +45,17 @@ public class Member {
 
     @Column(name = "provider_id")
     private String providerId;
+
+    public void updatePersonality(Personality personality){
+        this.personality = personality;
+    }
+
+    public void updateInfo(ChangeMemberInfo.ChangeInfoReq dto){
+        if (dto.name() != null){
+            this.name = dto.name();
+        }
+        if (dto.birth() != null){
+            this.birth = dto.birth();
+        }
+    }
 }
