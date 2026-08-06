@@ -1,0 +1,108 @@
+# AI 응답 언어
+language: ko-KR
+
+tone_instructions: >
+  당신은 '주린이를 위한 비서, JUBY의 코치입니다. 목표는 팀원의 성장을 돕는 것입니다.
+  1)원인과 개선안을 구체적으로 제시 2)교육적으로 리뷰하고 관련 공식 문서를 추천
+  3)비판보다 개선 제안 우선 4)칭찬은 짧고 위트있게 5)API 키/토큰 하드코딩·노출은 최우선으로 지적
+
+# 코드 리뷰 기능 세부 설정
+reviews:
+  profile: chill # 리뷰의 전반적인 스타일. 'chill'은 비교적 덜 엄격하고 부드러운 톤을 의미
+  request_changes_workflow: false # 코드래빗의 코멘트를 모두 resolve하면 자동으로 approve하는 기능
+  high_level_summary: true # PR의 전체적인 변경 사항에 대한 요약 생성
+  changed_files_summary: false # 변경된 각 파일에 대한 요약 생성
+  sequence_diagrams: false # 코드의 실행 흐름을 보여주는 시퀀스 다이어그램 생성
+  assess_linked_issues: true # PR에 연결된 이슈를 분석하여 리뷰 컨텍스트에 활용
+  related_issues: false # 연관된 다른 이슈를 찾아서 링크
+  related_prs: false # 연관된 다른 PR을 찾아서 링크
+  suggested_labels: false # PR에 적절한 Label을 제안
+  auto_apply_labels: false # 제안된 레이블을 자동으로 PR에 적용
+  suggested_reviewers: false # 이 PR을 리뷰할 만한 적절한 동료 리뷰어를 추천
+  auto_assign_reviewers: false # 추천된 리뷰어를 자동으로 할당
+  poem: false # 리뷰 요약에 시(Poem)를 포함할 지 여부
+
+  path_instructions:
+    - path: "src/main/java/**"
+      instructions: |
+        1. 가독성, 예외처리, 테스트/확장/유지보수성, 모듈화, API/DB/보안 설계 기준을 기반으로 리뷰해주세요.
+        2. 객체지향, 불필요한 로직, 클린코드, 리팩토링, 서비스/도메인 설계, 확장성도 함께 확인해주세요.
+        3. 각 리뷰 포인트별로 문제점과 대안, 장단점을 논리적으로 제시하고, 필요한 경우 예시 코드도 추가해 주세요.
+        4. 리뷰가 너무 많아서 피로감을 줄 수 있으니, 꼭 필요한 부분에 집중해주고, 나머지는 캡션으로 설명해주세요.
+        5. 리뷰 남겨주는 부분은 해당 라인 범위의 코멘트에 작성해주세요.
+
+    - path: "src/main/java/juby/invest/domain/**/controller/**"
+      instructions: |
+        1. 모든 응답이 ApiResponse<T> 규칙(onSuccess/onFailure)을 따르는지, 실패 시 원시 예외/문자열을 그대로 반환하지 않는지 확인해주세요.
+        2. @RequestBody/@RequestParam에 @Valid 및 검증 어노테이션이 누락되지 않았는지, 입력값 검증이 서비스단이 아닌 컨트롤러/DTO에서 이루어지는지 확인해주세요.
+        3. 인증이 필요한 엔드포인트가 SecurityConfig의 allowUris에 불필요하게 포함되지 않았는지, 권한 체크(@PreAuthorize 등)가 누락되지 않았는지 확인해주세요.
+        4. Swagger(@Operation, @Parameter 등) 문서화가 되어 있는지 확인해주세요.
+
+    - path: "src/main/java/juby/invest/domain/**/service/**"
+      instructions: |
+        1. 트랜잭션 경계(@Transactional)가 올바른 범위에 걸려 있는지, 읽기 전용 트랜잭션에 readOnly=true가 빠지지 않았는지 확인해주세요.
+        2. 예외는 반드시 해당 도메인의 ProjectException 하위 클래스(예: StockException, MemberException)와 도메인 ErrorCode enum으로 던지는지, RuntimeException을 직접 던지지 않는지 확인해주세요.
+        3. 외부 API(KIS, OpenAI, Naver, Pinecone) 호출 시 실패/타임아웃 처리와 재시도 정책이 적절한지 확인해주세요.
+        4. 반복문 내 JPA 조회로 인한 N+1 문제가 없는지 확인해주세요.
+
+    - path: "src/main/java/juby/invest/domain/**/repository/**"
+      instructions: |
+        1. 커스텀 쿼리(@Query)에 N+1, 불필요한 fetch join, 페이징 누락이 없는지 확인해주세요.
+        2. 대량 데이터를 다루는 초기 적재/스케줄러 관련 리포지토리는 벌크 연산(batch insert/update) 사용을 고려했는지 확인해주세요.
+
+    - path: "src/main/java/juby/invest/domain/**/exception/**"
+      instructions: |
+        1. 새 ErrorCode/SuccessCode가 GeneralErrorCode/GeneralSuccessCode 및 기존 도메인 코드와 명명 규칙(코드 접두사, HttpStatus 매핑)이 일관되는지 확인해주세요.
+        2. 이미 있는 GeneralErrorCode(BAD_REQUEST, NOT_FOUND 등)로 표현 가능한 케이스를 도메인 코드로 중복 정의하지 않았는지 확인해주세요.
+
+    - path: "src/main/java/juby/invest/global/security/**"
+      instructions: |
+        1. JWT 시크릿/토큰이 로그에 노출되거나 응답 바디에 그대로 포함되지 않는지 확인해주세요.
+        2. 토큰 만료/서명 검증, 리프레시 토큰 재사용 방지 로직에 허점이 없는지 확인해주세요.
+        3. OAuth2 소셜 로그인 콜백에서 받은 사용자 정보를 신뢰하기 전에 검증하는지 확인해주세요.
+
+    - path: "src/main/java/juby/invest/domain/kis/**"
+      instructions: |
+        1. KIS(한국투자증권) Open API 키/시크릿이 하드코딩되지 않고 설정값(kis.mock.*, kis.real.*)으로만 주입되는지 확인해주세요.
+        2. mock/real 서버 분기 로직이 명확하고, 실계좌(real) 호출 시 의도치 않은 부작용이 없는지 확인해주세요.
+        3. 외부 API 응답 지연/오류에 대한 예외 처리와 토큰 재발급 흐름이 안전한지 확인해주세요.
+
+    - path: "src/main/java/juby/invest/domain/backtest/**"
+      instructions: |
+        1. ta4j 기반 지표/전략 계산에서 빈 시계열, 0으로 나누기, NaN 전파 같은 엣지 케이스가 처리되는지 확인해주세요.
+        2. 백테스트 스코어링 로직의 반올림/정밀도 처리가 일관적인지 확인해주세요.
+        3. 새 전략/지표를 추가했다면 관련 단위 테스트(BacktestServiceTest 등)에 대한 보완을 제안해주세요.
+
+    - path: "src/main/resources/**"
+      instructions: |
+        1. application*.yaml에 시크릿 값이 하드코딩되지 않고 ${ENV_VAR} 형태로만 참조되는지 확인해주세요.
+        2. local/dev 등 프로필별 설정이 올바른 파일에 위치하는지, 운영에 부적합한 설정(show-sql, ddl-auto: update 등)이 dev/prod 프로필로 새어 들어가지 않았는지 확인해주세요.
+
+    - path: "src/test/**"
+      instructions: |
+        1. 테스트가 given-when-then 구조로 명확히 구성되어 있는지 확인해주세요.
+        2. 백테스트 전략/지표, 예외 처리 분기 등 핵심 로직에 대한 테스트 케이스가 비어 있거나 누락되어 있다면 어떤 케이스가 필요한지 구체적으로 제안해주세요.
+
+  # 자동 리뷰 트리거 설정
+  auto_review:
+    enabled: true # PR이 생성됐을 때, 자동으로 리뷰 진행
+    auto_incremental_review: false # 이미 리뷰가 진행된 PR에 새로운 커밋이 추가될 때, 변경된 부분에 대해서만 자동으로 리뷰 진행
+
+# 채팅 기능 설정
+chat:
+  auto_reply: true # 사용자가 @coderrabbitai 태그를 지정하지 않아도 자동으로 답글 달 수 있다.
+
+# 코드 래빗의 지식 기반 설정
+knowledge_base:
+  web_search:
+    enabled: true # 웹 검색을 통해 최신 정보나 문서를 참조
+  code_guidelines:
+    enabled: true # 레포지토리 내 특정 파일을 AI의 코드 스타일 가이드라인으로 사용
+    filePatterns:
+      - docs/code-convention.md
+  learnings:
+    scope: local # 코드 래빗이 대화나 리뷰를 통해 학습한 내용을 현재 레포(local)에 저장
+  issues:
+    scope: local  # 이슈 정보를 참조할 범위 설정
+  pull_requests:
+    scope: local # PR 정보를 참조할 범위 설정
