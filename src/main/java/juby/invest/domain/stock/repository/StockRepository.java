@@ -6,10 +6,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface StockRepository extends JpaRepository<Stock, String> {
 
     @Query("select s.stockCode from Stock s")
     List<String> findAllStockCodes();
+
+    Optional<Stock> findByStockName(String stockName);
 }
