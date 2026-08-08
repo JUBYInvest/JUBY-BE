@@ -62,6 +62,7 @@ spring:
 kis:
   mock:
     base-url: "https://openapivts.koreainvestment.com:29443"
+    socket-domain: "ws://ops.koreainvestment.com:31000"
     app-key: ${KIS_MOCK_APP_KEY}
     app-secret: ${KIS_MOCK_APP_SECRET}
   real:
