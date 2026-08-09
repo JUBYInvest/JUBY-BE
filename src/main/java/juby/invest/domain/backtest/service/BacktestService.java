@@ -1,7 +1,6 @@
 package juby.invest.domain.backtest.service;
 
 import jakarta.transaction.Transactional;
-import juby.invest.domain.backtest.dto.BacktestReqDto;
 import juby.invest.domain.backtest.exception.BacktestException;
 import juby.invest.domain.backtest.exception.code.BacktestErrorCode;
 import juby.invest.domain.stock.entity.DailyPrice;
@@ -38,18 +37,19 @@ public class BacktestService {
     private final AnalysisCriterionConverter analysisCriterionConverter;
 
     /***
-     * 전달받은 종목코드, 전략, 시작일, 종료일을 기준으로 백테스트 전략을 수행한다.
-     * @param dto BacktestReqDto.ReqInfo
-     * @return BacktestResDto.GetInfo
+     * 전달받은 종목코드, 투자성향, 시작일, 종료일을 기준으로 백테스트 전략을 수행한다.
+     * @param stockCode 종목 코드
+     * @param investType 투자 성향 (1~5)
+     * @param startDate 시작일
+     * @param endDate 종료일
+     * @return BacktestResDto.QuantScoringResponse
      */
     @Transactional
-    public BacktestResDto.QuantScoringResponse runStrategy(BacktestReqDto.ReqInfo dto){
+    public BacktestResDto.QuantScoringResponse runStrategy(
+            String stockCode, int investType, LocalDate startDate, LocalDate endDate){
 
-        String stockCode = stockRepository.findById(dto.stockCode())
+        stockCode = stockRepository.findById(stockCode)
                 .orElseThrow(() -> new BacktestException(BacktestErrorCode.STOCKCODE_NOT_FOUND)).getStockCode();
-        int investType = dto.investType();
-        LocalDate startDate = dto.startDate();
-        LocalDate endDate = dto.endDate();
 
         // List<DailyPrice -> ta4j의 Barseries 변환
         List<DailyPrice> dailyPriceList = dailyPriceRepository.findByStock_StockCodeAndDateBetweenOrderByDateAsc(stockCode, startDate, endDate);
