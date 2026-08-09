@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class TimeTraceApp {
 
-    @Around("execution(* juby.invest.domain.backtest.controller.BacktestController.convert(..))")
+    @Around("execution(* juby.invest.domain.backtest.controller.BacktestController.getPreset(..))")
     public Object execute(ProceedingJoinPoint joinPoint) throws Throwable {
         long start = System.currentTimeMillis();
 
