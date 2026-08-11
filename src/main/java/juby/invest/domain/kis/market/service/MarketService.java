@@ -97,7 +97,6 @@ public class MarketService {
             log.info("국내휴장일조회 API 호출 실패 {}", response == null ? "null" : response.message());
             throw new RuntimeException("국내휴장일조회 API 호출 실패");
         }
-
         return response.output();
     }
 

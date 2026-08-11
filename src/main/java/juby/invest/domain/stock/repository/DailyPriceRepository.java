@@ -13,30 +13,16 @@ import java.util.Optional;
 @Repository
 public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
-    boolean existsByStock(Stock stock);
-
-    List<DailyPrice> findByStock_StockCodeOrderByDateAsc(String stockCode);
-
     List<DailyPrice> findByStock_StockCodeAndDateBetweenOrderByDateAsc(
             String stockCode,
             LocalDate startDate,
             LocalDate endDate
     );
 
-    String stock(Stock stock);
-
-    boolean findByStock(Stock stock);
-
-    List<DailyPrice> findAllByStock(Stock stock);
-
     boolean existsByDate(LocalDate date);
-
-    boolean existsByStock_StockCodeAndDate(String stockStockCode, LocalDate date);
-
-    boolean findByDate(LocalDate date);
-
-    Optional<DailyPrice> findTopByStockOrderByDateDesc(Stock stock);
 
     @Query("SELECT MAX(dp.date) FROM DailyPrice dp WHERE dp.stock = :stock")
     LocalDate findMaxDateByStock(Stock stock);
+
+    boolean existsByStockAndDate(Stock stock, LocalDate today);
 }
