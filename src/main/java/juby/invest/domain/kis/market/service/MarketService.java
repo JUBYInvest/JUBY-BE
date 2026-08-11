@@ -1,6 +1,8 @@
 package juby.invest.domain.kis.market.service;
 
 import juby.invest.domain.kis.market.dto.*;
+import juby.invest.domain.kis.market.exception.MarketException;
+import juby.invest.domain.kis.market.exception.code.MarketErrorCode;
 import juby.invest.domain.kis.token.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +33,7 @@ public class MarketService {
      * @param stockCode 종목코드(ex 005930)
      * @return 응답DTO
      */
-    public DailyPriceDto.Output getDailyPrice(String stockCode) throws InterruptedException {
+    public DailyPriceDto.DailyPriceRes getDailyPrice(String stockCode) throws InterruptedException {
 
         // accessToken 발급 과정
         String accessToken = tokenService.getRealAccessToken().accessToken();
@@ -51,11 +53,11 @@ public class MarketService {
 
         if (response == null){
             log.info("현재가 조회 실패");
-            throw new RuntimeException("현재가 조회 실패");
+            throw new MarketException(MarketErrorCode.DAILY_PRICE_FAILED);
         }
 
         log.info("현재가 조회 성공: response.output 반환 {}", response.output());
-        return DailyPriceDto.Output.builder()
+        return DailyPriceDto.DailyPriceRes.builder()
                 .openPrice(response.output().openPrice())
                 .highPrice(response.output().highPrice())
                 .lowPrice(response.output().lowPrice())
@@ -63,6 +65,7 @@ public class MarketService {
                 .volume(response.output().volume())
                 .compareYesterday(response.output().compareYesterday())
                 .compareYesterdaySign(response.output().compareYesterdaySign())
+                .dayChange(response.output().dayChange())
                 .build();
     }
 
