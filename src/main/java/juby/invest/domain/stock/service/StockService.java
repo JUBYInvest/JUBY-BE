@@ -42,8 +42,9 @@ public class StockService {
         int currentPrice = Integer.parseInt(kisResponse.currentPrice());
         double comparePrev = Double.parseDouble(kisResponse.dayChange());
 
-        // 오늘날짜를 기준으로 역산하여 시작일을 계산한다.
-        LocalDate startDate = calculateDay(period);
+        // 최신 거래일을 기준으로 역산하여 시작일을 계산한다.
+        LocalDate recentTradeDay = dailyPriceRepository.findMaxDateByStock(stock);
+        LocalDate startDate = calculateDay(recentTradeDay, period);
 
         // 시작일 ~ 오늘까지 DailyPrice 객체 -> DailyPrices DTO
         List<StockDetailDto.DailyPrices> dailyPrices = dailyPriceRepository.findAllByStockAndDateGreaterThanEqualOrderByDateAsc(stock, startDate).stream()
@@ -54,14 +55,14 @@ public class StockService {
     }
 
     // 오늘날짜를 기준으로 역산하여 시작일을 계산한다.
-    private LocalDate calculateDay(Period period) {
+    private LocalDate calculateDay(LocalDate recentTradeDay, Period period) {
         return switch (period) {
-            case Period.ONE_WEEK -> LocalDate.now().minusDays(7);
-            case Period.ONE_MONTH -> LocalDate.now().minusMonths(1);
-            case Period.THREE_MONTH -> LocalDate.now().minusMonths(3);
-            case Period.SIX_MONTH -> LocalDate.now().minusMonths(6);
-            case Period.ONE_YEAR -> LocalDate.now().minusYears(1);
-            case Period.THREE_YEAR -> LocalDate.now().minusYears(3);
+            case Period.ONE_WEEK -> recentTradeDay.minusDays(7);
+            case Period.ONE_MONTH -> recentTradeDay.minusMonths(1);
+            case Period.THREE_MONTH -> recentTradeDay.minusMonths(3);
+            case Period.SIX_MONTH -> recentTradeDay.minusMonths(6);
+            case Period.ONE_YEAR -> recentTradeDay.minusYears(1);
+            case Period.THREE_YEAR -> recentTradeDay.minusYears(3);
             default -> START_OF_THE_DATE;
         };
     }
