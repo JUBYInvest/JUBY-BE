@@ -26,9 +26,9 @@ public class MarketController {
 
     @Operation(summary = "주식 현재가 및 전일대비 증감 조회", description = "종목 코드를 입력 받아 현재가와 전일대비 증감액을 반환한다.")
     @GetMapping("/price")
-    public ResponseEntity<DailyPriceDto.Output> getPrice(@Parameter(description = "종목 코드")
+    public ResponseEntity<DailyPriceDto.DailyPriceRes> getPrice(@Parameter(description = "종목 코드")
             @RequestParam String code) throws InterruptedException {
-        DailyPriceDto.Output response = marketService.getDailyPrice(code);
+        DailyPriceDto.DailyPriceRes response = marketService.getDailyPrice(code);
         return ResponseEntity.ok(response);
     }
 
