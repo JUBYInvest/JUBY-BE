@@ -48,11 +48,11 @@ public class BacktestService {
     public BacktestResDto.QuantScoringResponse runStrategy(
             String stockCode, int investType, LocalDate startDate, LocalDate endDate){
 
-        stockCode = stockRepository.findById(stockCode)
-                .orElseThrow(() -> new BacktestException(BacktestErrorCode.STOCKCODE_NOT_FOUND)).getStockCode();
+        Stock stock = stockRepository.findById(stockCode)
+                .orElseThrow(() -> new BacktestException(BacktestErrorCode.STOCKCODE_NOT_FOUND));
 
         // List<DailyPrice -> ta4j의 Barseries 변환
-        List<DailyPrice> dailyPriceList = dailyPriceRepository.findByStock_StockCodeAndDateBetweenOrderByDateAsc(stockCode, startDate, endDate);
+        List<DailyPrice> dailyPriceList = dailyPriceRepository.findByStockAndDateBetweenOrderByDateAsc(stock, startDate, endDate);
 
         if (dailyPriceList.isEmpty()){
             throw new BacktestException(BacktestErrorCode.DATE_NOT_FOUND);
