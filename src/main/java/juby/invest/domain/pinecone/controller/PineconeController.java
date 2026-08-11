@@ -1,12 +1,10 @@
 package juby.invest.domain.pinecone.controller;
 
-import io.swagger.v3.oas.annotations.Operation;
-import juby.invest.domain.pinecone.dto.PineconeResDto;
+import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.pinecone.exception.code.PineconeSuccessCode;
 import juby.invest.domain.pinecone.service.PineconeService;
 import juby.invest.global.apiPayload.ApiResponse;
 import juby.invest.global.apiPayload.code.BaseSuccessCode;
-import juby.invest.global.apiPayload.code.GeneralSuccessCode;
 import lombok.RequiredArgsConstructor;
 import org.openapitools.db_data.client.ApiException;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +23,7 @@ public class PineconeController {
      * @throws ApiException pinecone 예외 처리
      */
     @GetMapping
-    public ApiResponse<PineconeResDto.UpsertSuccess> upsertData(
+    public ApiResponse<PineconeDto.UpsertSuccess> upsertData(
             @RequestParam("query") String query) throws ApiException {
         BaseSuccessCode successCode = PineconeSuccessCode.CREATED;
         return ApiResponse.onSuccess(successCode, pineconeService.upsertData(query));
@@ -36,7 +34,7 @@ public class PineconeController {
      * @return 공통 응답 양식
      */
     @PostMapping("/all")
-    public ApiResponse<PineconeResDto.BulkUpsertSuccess> upsertAllStockNews(){
+    public ApiResponse<PineconeDto.BulkUpsertSuccess> upsertAllStockNews(){
         BaseSuccessCode successCode = PineconeSuccessCode.CREATED;
         return ApiResponse.onSuccess(successCode, pineconeService.upsertAllStockNews());
     }
@@ -49,7 +47,7 @@ public class PineconeController {
      * @throws ApiException pinecone 예외 처리
      */
     @GetMapping("/search")
-    public ApiResponse<PineconeResDto.SearchSuccess> searchData(
+    public ApiResponse<PineconeDto.SearchSuccess> searchData(
             @RequestParam("question") String question,
             @RequestParam("stockName") String stockName) throws ApiException {
         BaseSuccessCode successCode = PineconeSuccessCode.OK;
