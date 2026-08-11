@@ -1,6 +1,6 @@
 package juby.invest.global.scheduler;
 
-import juby.invest.domain.pinecone.dto.PineconeResDto;
+import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.pinecone.service.PineconeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +26,7 @@ public class UpsertNewsToPineconeScheduler {
 
         log.info("[스케줄러-3] 뉴스 벡터DB 적재 스케줄러 동작 시작.");
 
-        PineconeResDto.BulkUpsertSuccess result = pineconeService.upsertAllStockNews();
+        PineconeDto.BulkUpsertSuccess result = pineconeService.upsertAllStockNews();
 
         log.info("[스케줄러-3] 뉴스 벡터DB 적재 스케줄러 동작 완료. 전체 {}건 중 성공 {}건, 실패 종목: {}",
                 result.totalCount(), result.successCount(), result.failedStocks());

@@ -6,7 +6,7 @@ import lombok.Builder;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public class PineconeResDto {
+public class PineconeDto {
 
     @Builder
     public record UpsertSuccess(
@@ -34,4 +34,14 @@ public class PineconeResDto {
                 String pubDate
         ){}
     }
+
+    @Builder
+    public record StockNewsHit(
+            String id,
+            float score,
+            String title,
+            String description,
+            String originalLink,
+            String pubDate
+    ){}
 }

@@ -1,19 +1,10 @@
 package juby.invest.domain.pinecone.service;
 
-import com.google.protobuf.Struct;
-import com.google.protobuf.Value;
 import io.pinecone.clients.Index;
-import io.pinecone.configs.PineconeConfig;
-import io.pinecone.configs.PineconeConnection;
-import io.pinecone.proto.QueryRequest;
-import io.pinecone.proto.QueryResponse;
-import io.pinecone.proto.ScoredVector;
-import io.pinecone.unsigned_indices_model.QueryResponseWithUnsignedIndices;
-import io.pinecone.unsigned_indices_model.ScoredVectorWithUnsignedIndices;
 import juby.invest.domain.news.dto.NewsResDto;
 import juby.invest.domain.news.service.NewsService;
 import juby.invest.domain.pinecone.converter.PineconeConverter;
-import juby.invest.domain.pinecone.dto.PineconeResDto;
+import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.stock.entity.Stock;
 import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.openapitools.db_data.client.ApiException;
 import org.openapitools.db_data.client.model.Hit;
 import org.openapitools.db_data.client.model.SearchRecordsResponse;
-import org.openapitools.db_data.client.model.SearchRecordsResponseResult;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -49,7 +39,7 @@ public class PineconeService {
      * @param query 종목 검색어
      * @throws ApiException pinecone 호출 예외
      */
-    public PineconeResDto.UpsertSuccess upsertData(String query) throws ApiException {
+    public PineconeDto.UpsertSuccess upsertData(String query) throws ApiException {
 
         NewsResDto.NewsResponse newsResponse = newsService.callNewsApi(query);
         List<Map<String, String>> upsertRecords = pineconeConverter.makeUpsertRecords(newsResponse, query);
@@ -61,7 +51,7 @@ public class PineconeService {
             throw e;
         }
 
-        return PineconeResDto.UpsertSuccess.builder()
+        return PineconeDto.UpsertSuccess.builder()
                 .newsResponse(newsResponse)
                 .upsertTime(LocalDateTime.now())
                 .build();
@@ -73,18 +63,22 @@ public class PineconeService {
      *          3. 종목별 조회/청크 upsert 중 예외가 발생해도 나머지 종목 적재는 계속 진행한다.
      * @return 전체/성공 건수와 실패한 종목명 목록
      */
-    public PineconeResDto.BulkUpsertSuccess upsertAllStockNews(){
+    public PineconeDto.BulkUpsertSuccess upsertAllStockNews(){
 
-        List<Stock> stocks = stockRepository.findAll();
+        List<Stock> stocks = stockRepository.findAll(); // 전체 종목 리스트를 뽑는다.
         List<String> failedStocks = new ArrayList<>();
         int successCount = 0;
 
         List<Map<String, String>> buffer = new ArrayList<>();
         List<String> pendingStocks = new ArrayList<>();
 
+        // 종목 리스트 전체 순회하여, 뉴스를 호출하고 Pinecone DB에 Upsert한다.
         for (Stock stock : stocks){
             try {
+                // 해당 stockName으로 검색한 뉴스 20개가 NewsResponse Dto에 담겨진다.
                 NewsResDto.NewsResponse newsResponse = newsService.callNewsApi(stock.getStockName());
+
+                // NewsResponse에 담긴 20개 뉴스를 Pinecone DB에 Upsert한다.
                 buffer.addAll(pineconeConverter.makeUpsertRecords(newsResponse, stock.getStockName()));
                 pendingStocks.add(stock.getStockName());
             } catch (Exception e){
@@ -104,7 +98,7 @@ public class PineconeService {
             successCount += flushChunk(buffer, pendingStocks, failedStocks);
         }
 
-        return PineconeResDto.BulkUpsertSuccess.builder()
+        return PineconeDto.BulkUpsertSuccess.builder()
                 .totalCount(stocks.size())
                 .successCount(successCount)
                 .failedStocks(failedStocks)
@@ -162,7 +156,7 @@ public class PineconeService {
      * @param stockName 필터: 종목이름
      * @throws ApiException pinecone 예외처리
      */
-    public PineconeResDto.SearchSuccess searchData(String question, String stockName) throws ApiException {
+    public PineconeDto.SearchSuccess searchData(String question, String stockName) throws ApiException {
 
         // 검색할 내용들
         List<String> fields = new ArrayList<>();
@@ -186,7 +180,7 @@ public class PineconeService {
         log.info("recordsResposne = {}", recordsResponse);
 
         List<Hit> hits = recordsResponse.getResult().getHits();
-        List<PineconeResDto.SearchSuccess.News> newsList = new ArrayList<>();
+        List<PineconeDto.SearchSuccess.News> newsList = new ArrayList<>();
 
         for (Hit hit : hits){
             Map<String, Object> resFields = (Map<String, Object>) hit.getFields();
@@ -195,7 +189,7 @@ public class PineconeService {
             String description = resFields.get("description").toString();
             String pubDate = resFields.get("pubDate").toString();
 
-            newsList.add(PineconeResDto.SearchSuccess.News.builder()
+            newsList.add(PineconeDto.SearchSuccess.News.builder()
                     .stockName(stockName)
                     .title(title)
                     .description(description)
@@ -203,7 +197,7 @@ public class PineconeService {
                     .build());
         }
 
-        return PineconeResDto.SearchSuccess.builder()
+        return PineconeDto.SearchSuccess.builder()
                 .newsList(newsList)
                 .build();
     }
