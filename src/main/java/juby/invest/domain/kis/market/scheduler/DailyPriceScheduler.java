@@ -1,6 +1,5 @@
 package juby.invest.domain.kis.market.scheduler;
 
-import io.netty.handler.codec.DateFormatter;
 import juby.invest.domain.kis.market.dto.DailyPriceDto;
 import juby.invest.domain.kis.market.dto.HolidayDto;
 import juby.invest.domain.kis.market.service.MarketService;
@@ -57,7 +56,7 @@ public class DailyPriceScheduler {
             }
 
             try {
-                DailyPriceDto.Output dailyPrice = marketService.getDailyPrice(stock.getStockCode());
+                DailyPriceDto.DailyPriceRes dailyPrice = marketService.getDailyPrice(stock.getStockCode());
 
                 dailyPrices.add(DailyPrice.builder()
                         .stock(stock)
