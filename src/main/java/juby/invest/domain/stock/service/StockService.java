@@ -1,6 +1,6 @@
 package juby.invest.domain.stock.service;
 
-import juby.invest.domain.kis.market.dto.DailyPriceDto;
+import juby.invest.domain.kis.market.dto.CurrentPriceRes;
 import juby.invest.domain.kis.market.service.MarketService;
 import juby.invest.domain.stock.converter.StockConverter;
 import juby.invest.domain.stock.dto.StockDetailDto;
@@ -38,7 +38,7 @@ public class StockService {
                 .orElseThrow(() -> new StockException(StockErrorCode.STOCK_NOT_FOUND));
 
         // 현재가와 전일 대비 변동률을 KIS API를 통해 가져온다.
-        DailyPriceDto.DailyPriceRes kisResponse = marketService.getDailyPrice(stockCode);
+        CurrentPriceRes.Info kisResponse = marketService.getDailyPrice(stockCode);
         int currentPrice = Integer.parseInt(kisResponse.currentPrice());
         double comparePrev = Double.parseDouble(kisResponse.dayChange());
 

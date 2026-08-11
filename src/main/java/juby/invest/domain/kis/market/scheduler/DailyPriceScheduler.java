@@ -1,6 +1,6 @@
 package juby.invest.domain.kis.market.scheduler;
 
-import juby.invest.domain.kis.market.dto.DailyPriceDto;
+import juby.invest.domain.kis.market.dto.CurrentPriceRes;
 import juby.invest.domain.kis.market.dto.HolidayDto;
 import juby.invest.domain.kis.market.service.MarketService;
 import juby.invest.domain.stock.entity.DailyPrice;
@@ -56,7 +56,7 @@ public class DailyPriceScheduler {
             }
 
             try {
-                DailyPriceDto.DailyPriceRes dailyPrice = marketService.getDailyPrice(stock.getStockCode());
+                CurrentPriceRes.Info dailyPrice = marketService.getDailyPrice(stock.getStockCode());
 
                 dailyPrices.add(DailyPrice.builder()
                         .stock(stock)

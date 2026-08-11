@@ -4,12 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
 @Builder
-public record DailyPriceDto(
+public record CurrentPriceRes(
         @JsonProperty("rt_cd") String rtCd, // 성공 실패 여부
         @JsonProperty("msg1") String message, // 응답메세지
-        @JsonProperty("output") DailyPriceRes output){ // 응답 상세
+        @JsonProperty("output") Info output){ // 응답 상세
     @Builder
-    public record DailyPriceRes(
+    public record Info(
             @JsonProperty("stck_prpr") String currentPrice,
             @JsonProperty("stck_oprc") String openPrice,
             @JsonProperty("stck_hgpr") String highPrice,

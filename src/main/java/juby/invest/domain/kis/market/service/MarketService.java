@@ -33,12 +33,12 @@ public class MarketService {
      * @param stockCode 종목코드(ex 005930)
      * @return 응답DTO
      */
-    public DailyPriceDto.DailyPriceRes getDailyPrice(String stockCode) throws InterruptedException {
+    public CurrentPriceRes.Info getDailyPrice(String stockCode) throws InterruptedException {
 
         // accessToken 발급 과정
         String accessToken = tokenService.getRealAccessToken().accessToken();
 
-        DailyPriceDto response = realInvestRestClient.get()
+        CurrentPriceRes response = realInvestRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/uapi/domestic-stock/v1/quotations/inquire-price")
                         .queryParam("FID_COND_MRKT_DIV_CODE", "J")
@@ -49,7 +49,7 @@ public class MarketService {
                 .header("appsecret", realAppSecret)
                 .header("tr_id", "FHKST01010100")
                 .retrieve()
-                .body(DailyPriceDto.class);
+                .body(CurrentPriceRes.class);
 
         if (response == null){
             log.info("현재가 조회 실패");
@@ -57,7 +57,7 @@ public class MarketService {
         }
 
         log.info("현재가 조회 성공: response.output 반환 {}", response.output());
-        return DailyPriceDto.DailyPriceRes.builder()
+        return CurrentPriceRes.Info.builder()
                 .openPrice(response.output().openPrice())
                 .highPrice(response.output().highPrice())
                 .lowPrice(response.output().lowPrice())
@@ -109,10 +109,10 @@ public class MarketService {
      * @param stockCode 종목코드 (ex 005930)
      * @return 응답 DTO
      */
-    public List<DailyStockPriceDto.Output> getDailyStockPrice(String stockCode) throws InterruptedException {
+    public List<DailyPriceRes.DailyInfo> getDailyStockPrice(String stockCode) throws InterruptedException {
         String accessToken = tokenService.getMockAccessToken().accessToken();
 
-        DailyStockPriceDto response = mockInvestRestClient.get()
+        DailyPriceRes response = mockInvestRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/uapi/domestic-stock/v1/quotations/inquire-daily-price")
                         .queryParam("FID_COND_MRKT_DIV_CODE", "J")
@@ -125,7 +125,7 @@ public class MarketService {
                 .header("appsecret", mockAppSecret)
                 .header("tr_id", "FHKST01010400")
                 .retrieve()
-                .body(DailyStockPriceDto.class);
+                .body(DailyPriceRes.class);
 
         if (response == null){
             log.info("주식현재가 일자별 API 호출 실패");
