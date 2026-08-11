@@ -4,14 +4,11 @@ import juby.invest.domain.news.converter.NewsConverter;
 import juby.invest.domain.news.dto.NewsResDto;
 import juby.invest.domain.news.exception.NewsException;
 import juby.invest.domain.news.exception.code.NewsErrorCode;
-import juby.invest.domain.pinecone.service.PineconeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.openapitools.db_data.client.ApiException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.util.HtmlUtils;
 
 import java.util.*;
 
@@ -39,7 +36,7 @@ public class NewsService {
             try {
                 NewsResDto.NewsResponse response = newsSearchRestClient.get()
                         .uri(uriBuilder -> uriBuilder
-                                .queryParam("query", query)
+                                .queryParam("query", query) // 검색어
                                 .queryParam("display", DISPLAY_COUNT)
                                 .build())
                         .retrieve()
