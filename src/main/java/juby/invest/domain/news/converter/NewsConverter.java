@@ -1,12 +1,12 @@
 package juby.invest.domain.news.converter;
 
-import juby.invest.domain.news.dto.NewsResDto;
-import org.springframework.stereotype.Component;
+import juby.invest.domain.news.dto.NewsDto;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.util.HtmlUtils;
 
 import java.util.List;
 
-@Component
+@Slf4j
 public class NewsConverter {
 
     /***
@@ -14,9 +14,9 @@ public class NewsConverter {
      * @param response 네이버 뉴스 API의 응답
      * @return 태그가 제거된 응답 본문
      */
-    public NewsResDto.NewsResponse cleanResponse(NewsResDto.NewsResponse response){
-        List<NewsResDto.ItemDetail> cleanedItemList = response.itemList().stream()
-                .map(item -> NewsResDto.ItemDetail.builder()
+    public static NewsDto.NaverNewsRes cleanResponse(NewsDto.NaverNewsRes response){
+        List<NewsDto.ItemDetail> cleanedItemList = response.itemList().stream()
+                .map(item -> NewsDto.ItemDetail.builder()
                         .title(cleanHtml(item.title()))
                         .originallink(item.originallink())
                         .description(cleanHtml(item.description()))
@@ -24,13 +24,14 @@ public class NewsConverter {
                         .build())
                 .toList();
 
-        return NewsResDto.NewsResponse.builder()
+        return NewsDto.NaverNewsRes.builder()
                 .display(response.display())
                 .itemList(cleanedItemList)
                 .build();
     }
 
-    private String cleanHtml(String html){
+    // 불필요 문자 추출
+    private static String cleanHtml(String html){
         String noTag = html.replaceAll("<[^>]*>", "");
         return HtmlUtils.htmlUnescape(noTag);
     }

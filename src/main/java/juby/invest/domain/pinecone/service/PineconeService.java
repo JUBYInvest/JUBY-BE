@@ -1,16 +1,17 @@
 package juby.invest.domain.pinecone.service;
 
 import io.pinecone.clients.Index;
-import juby.invest.domain.news.dto.NewsResDto;
+import juby.invest.domain.news.dto.NewsDto;
 import juby.invest.domain.news.service.NewsService;
 import juby.invest.domain.pinecone.converter.PineconeConverter;
 import juby.invest.domain.pinecone.dto.PineconeDto;
+import juby.invest.domain.pinecone.exception.PineconeException;
+import juby.invest.domain.pinecone.exception.code.PineconeErrorCode;
 import juby.invest.domain.stock.entity.Stock;
 import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openapitools.db_data.client.ApiException;
-import org.openapitools.db_data.client.model.Hit;
 import org.openapitools.db_data.client.model.SearchRecordsResponse;
 import org.springframework.stereotype.Service;
 
@@ -22,40 +23,17 @@ import java.util.*;
 @Slf4j
 public class PineconeService {
 
-    // Pinecone integrated-embedding upsert_records 1회 호출당 최대 레코드 수 제한(96건)에 맞춘 청크 크기
-    private static final int UPSERT_CHUNK_SIZE = 96;
-    // 네이버 뉴스 API 초당 호출 제한(429)을 예방하기 위한 종목 간 호출 간격
-    private static final long NAVER_API_CALL_DELAY_MS = 200;
-
     private final Index pineconeConfig;
     private final PineconeConverter pineconeConverter;
     private final NewsService newsService;
     private final StockRepository stockRepository;
 
-    /***
-     * 함수 기능: 1. 주기적으로 종목 리스트를 순회하며, 네이버 뉴스 API를 호출한다.
-     *          2. 받은 응답을 vectorDB에 넣을 수 있게끔 컨버터를 통해 변환한다.
-     *          3. 변환된 최종 응답을 vectorDB에 삽입한다.
-     * @param query 종목 검색어
-     * @throws ApiException pinecone 호출 예외
-     */
-    public PineconeDto.UpsertSuccess upsertData(String query) throws ApiException {
-
-        NewsResDto.NewsResponse newsResponse = newsService.callNewsApi(query);
-        List<Map<String, String>> upsertRecords = pineconeConverter.makeUpsertRecords(newsResponse, query);
-
-        try {
-            pineconeConfig.upsertRecords("naver_news", upsertRecords);
-        } catch (ApiException e){
-            log.error("vectorDB upsert 실패. query={}, 레코드 {}건", query, upsertRecords.size(), e);
-            throw e;
-        }
-
-        return PineconeDto.UpsertSuccess.builder()
-                .newsResponse(newsResponse)
-                .upsertTime(LocalDateTime.now())
-                .build();
-    }
+    // Pinecone integrated-embedding upsert_records 1회 호출당 최대 레코드 수 제한(96건)에 맞춘 청크 크기
+    private static final int UPSERT_CHUNK_SIZE = 96;
+    // 네이버 뉴스 API 초당 호출 제한(429)을 예방하기 위한 종목 간 호출 간격
+    private static final long NAVER_API_CALL_DELAY_MS = 200;
+    // Pinecone에서 가져올 뉴스 레코드 갯수
+    private static final int TOP_K = 100;
 
     /***
      * 함수 기능: 1. DB에 저장된 전체 종목(기본 100개)을 순회하며 각 종목명을 query로 뉴스를 조회한다.
@@ -76,10 +54,10 @@ public class PineconeService {
         for (Stock stock : stocks){
             try {
                 // 해당 stockName으로 검색한 뉴스 20개가 NewsResponse Dto에 담겨진다.
-                NewsResDto.NewsResponse newsResponse = newsService.callNewsApi(stock.getStockName());
+                NewsDto.NaverNewsRes naverNewsResponse = newsService.callNewsApi(stock.getStockName());
 
                 // NewsResponse에 담긴 20개 뉴스를 Pinecone DB에 Upsert한다.
-                buffer.addAll(pineconeConverter.makeUpsertRecords(newsResponse, stock.getStockName()));
+                buffer.addAll(PineconeConverter.toNaverNewsNameSpaceRecord(naverNewsResponse, stock.getStockName()));
                 pendingStocks.add(stock.getStockName());
             } catch (Exception e){
                 log.error("종목 [{}] 뉴스 조회 실패", stock.getStockName(), e);
@@ -123,6 +101,7 @@ public class PineconeService {
 
             try {
                 pineconeConfig.upsertRecords("naver_news", new ArrayList<>(subBatch));
+                log.info("뉴스 청크 upsert 성공");
             } catch (ApiException e){
                 log.error("뉴스 청크 upsert 실패 (레코드 {}건)", subBatch.size(), e);
                 allSucceeded = false;
@@ -136,7 +115,7 @@ public class PineconeService {
 
         buffer.clear();
         pendingStocks.clear();
-
+        log.info("뉴스 청크 모든 종목 upsert 성공");
         return flushedStockCount;
     }
 
@@ -156,49 +135,93 @@ public class PineconeService {
      * @param stockName 필터: 종목이름
      * @throws ApiException pinecone 예외처리
      */
-    public PineconeDto.SearchSuccess searchData(String question, String stockName) throws ApiException {
+    public List<PineconeDto.StockNewsHit> searchData(String question, String stockName) throws ApiException {
 
+        // 레코드에서 가져올 컬럼을 지정한다.
+        List<String> fields = getNewsFields();
+
+        // 필터 조건을 건다.
+        Map<String, Object> filter = makeFilter(stockName);
+
+        // AI에게 전달할 검색어 기반 가장 유사도 높은 뉴스 레코드 3개를 반환한다.
+        return getStockNewsHits(question, fields, filter, 3);
+    }
+
+    /***
+     * 함수 기능: 종목명으로 필터링해 해당 종목의 뉴스 후보를 최대 100건 조회한다.
+     * @param stockName 필터 및 유사도 질의에 사용할 종목명
+     */
+    public List<PineconeDto.StockNewsHit> searchStockNews(String stockName) {
+
+        // 레코드에서 가져올 컬럼들
+        List<String> fields = getNewsFields();
+
+        // 필터 생성
+        Map<String, Object> filter = makeFilter(stockName);
+
+        // 종목 뉴스 페이지에 보여줄 종목명 기반 가장 유사도 높은 TOK_K개 뉴스를 반환한다.
+        return getStockNewsHits(stockName, fields, filter, TOP_K);
+    }
+
+    // topK만큼의 StockNewsHit DTO 리스트
+    private List<PineconeDto.StockNewsHit> getStockNewsHits(String keyword, List<String> fields, Map<String, Object> filter, int topK) {
+
+        // pinecone에서 찾은 뉴스 레코드 응답
+        SearchRecordsResponse recordsResponse;
+        try {
+            recordsResponse = pineconeConfig.searchRecordsByText(keyword, "naver_news", fields, topK, filter, null);
+        } catch (ApiException e) {
+            log.error("해당 키워드 pineconeDB 검색 실패. keyword = {}", keyword, e);
+            throw new PineconeException(PineconeErrorCode.PINECONE_SEARCH_FAILED);
+        }
+        return recordsResponse.getResult().getHits().stream()
+                .map(PineconeConverter::toStockNewsHit)
+                .toList();
+    }
+
+    // Semantic Search 할 때, 필터 조건을 건다.
+    private Map<String, Object> makeFilter(String stockName) {
+        // 필터
+        Map<String, Object> filter = new HashMap<>();
+        filter.put("stock_name", stockName);
+        return filter;
+    }
+
+    // pinecone에서 조회할 레코드의 컬럼들
+    private static List<String> getNewsFields() {
         // 검색할 내용들
         List<String> fields = new ArrayList<>();
         fields.add("title");
         fields.add("description");
         fields.add("pubDate");
+        fields.add("originallink");
         fields.add("stock_name");
+        return fields;
+    }
 
-        // 필터
-        Map<String, Object> filter = new HashMap<>();
-        filter.put("stock_name", stockName);
+    /***
+     * 함수 기능: Pinecone Upsert 동작 확인 함수
+     *          1. 주기적으로 종목 리스트를 순회하며, 네이버 뉴스 API를 호출한다.
+     *          2. 받은 응답을 vectorDB에 넣을 수 있게끔 컨버터를 통해 변환한다.
+     *          3. 변환된 최종 응답을 vectorDB에 삽입한다.
+     * @param query 종목 검색어
+     * @throws ApiException pinecone 호출 예외
+     */
+    public PineconeDto.UpsertSuccess upsertData(String query) throws ApiException {
 
-        // 응답 반환 및 정보 분리
-        SearchRecordsResponse recordsResponse;
+        NewsDto.NaverNewsRes naverNewsResponse = newsService.callNewsApi(query);
+        List<Map<String, String>> upsertRecords = PineconeConverter.toNaverNewsNameSpaceRecord(naverNewsResponse, query);
+
         try {
-            recordsResponse = pineconeConfig.searchRecordsByText(question, "naver_news", fields, 3, filter, null);
+            pineconeConfig.upsertRecords("naver_news", upsertRecords);
         } catch (ApiException e){
-            log.error("vectorDB 검색 실패. question={}, stockName={}", question, stockName, e);
+            log.error("vectorDB upsert 실패. query={}, 레코드 {}건", query, upsertRecords.size(), e);
             throw e;
         }
-        log.info("recordsResposne = {}", recordsResponse);
 
-        List<Hit> hits = recordsResponse.getResult().getHits();
-        List<PineconeDto.SearchSuccess.News> newsList = new ArrayList<>();
-
-        for (Hit hit : hits){
-            Map<String, Object> resFields = (Map<String, Object>) hit.getFields();
-
-            String title = resFields.get("title").toString();
-            String description = resFields.get("description").toString();
-            String pubDate = resFields.get("pubDate").toString();
-
-            newsList.add(PineconeDto.SearchSuccess.News.builder()
-                    .stockName(stockName)
-                    .title(title)
-                    .description(description)
-                    .pubDate(pubDate)
-                    .build());
-        }
-
-        return PineconeDto.SearchSuccess.builder()
-                .newsList(newsList)
+        return PineconeDto.UpsertSuccess.builder()
+                .naverNewsResponse(naverNewsResponse)
+                .upsertTime(LocalDateTime.now())
                 .build();
     }
 }

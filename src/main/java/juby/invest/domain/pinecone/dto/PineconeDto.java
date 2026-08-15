@@ -1,6 +1,6 @@
 package juby.invest.domain.pinecone.dto;
 
-import juby.invest.domain.news.dto.NewsResDto;
+import juby.invest.domain.news.dto.NewsDto;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
@@ -8,9 +8,10 @@ import java.util.List;
 
 public class PineconeDto {
 
+    // Pinecone에 뉴스 레코드를 등록했을 때의 반환 DTO
     @Builder
     public record UpsertSuccess(
-            NewsResDto.NewsResponse newsResponse,
+            NewsDto.NaverNewsRes naverNewsResponse,
             LocalDateTime upsertTime
     ){}
 
@@ -22,19 +23,7 @@ public class PineconeDto {
             LocalDateTime upsertTime
     ){}
 
-    @Builder
-    public record SearchSuccess(
-            List<News> newsList
-    ){
-        @Builder
-        public record News(
-                String title,
-                String stockName,
-                String description,
-                String pubDate
-        ){}
-    }
-
+    // Pinecone에서 Semantic Search를 통해 찾은 뉴스 레코드 DTO
     @Builder
     public record StockNewsHit(
             String id,

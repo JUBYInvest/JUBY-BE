@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.openapitools.db_data.client.ApiException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/vectordb")
 @RequiredArgsConstructor
@@ -47,7 +49,7 @@ public class PineconeController {
      * @throws ApiException pinecone 예외 처리
      */
     @GetMapping("/search")
-    public ApiResponse<PineconeDto.SearchSuccess> searchData(
+    public ApiResponse<List<PineconeDto.StockNewsHit>> searchData(
             @RequestParam("question") String question,
             @RequestParam("stockName") String stockName) throws ApiException {
         BaseSuccessCode successCode = PineconeSuccessCode.OK;
