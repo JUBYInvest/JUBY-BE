@@ -3,10 +3,13 @@ package juby.invest.global.config;
 import io.pinecone.clients.Index;
 import io.pinecone.configs.PineconeConfig;
 import io.pinecone.configs.PineconeConnection;
+import okhttp3.OkHttpClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
+
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class AppConfig {
@@ -47,8 +50,20 @@ public class AppConfig {
     // Pinecone 연결
     @Bean
     public Index pineconeConfig(){
+
+        // Pinecone 클라이언트는 서버가 96개의 청크를 upsert할 때까지의 시간을 설정해두어, 연결을 유지해야한다.
+        // 기본 10초는 짧기에 60초로 증가
+        OkHttpClient okHttpClient = new OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(60, TimeUnit.SECONDS)
+                .build();
+
         PineconeConfig config = new PineconeConfig(pineconeAppKey);
-        config.setHost("juby-22wov83.svc.aped-4627-b74a.pinecone.io");
+        config.setHost("juby-lovh45p.svc.aped-4627-b74a.pinecone.io");
+
+        // Index 생성자가 이 시점의 config에서 OkHttpClient를 꺼내가므로 반드시 new Index(...) 전에 설정해야 한다.
+        config.setCustomOkHttpClient(okHttpClient);
 
         PineconeConnection connection = new PineconeConnection(config);
 
