@@ -56,14 +56,17 @@ public class StockService {
         int currentPrice = Integer.parseInt(kisResponse.currentPrice());
         double comparePrev = Double.parseDouble(kisResponse.dayChange());
 
-        // 최신 거래일을 기준으로 역산하여 시작일을 계산한다.
+        // 최신 거래일을 구한다.
         LocalDate recentTradeDay = dailyPriceRepository.findMaxDateByStock(stock);
-        LocalDate startDate = calculateDay(recentTradeDay, period);
 
         // 시작일 ~ 오늘까지 DailyPrice 객체 -> DailyPrices DTO
-        List<StockDetailDto.DailyPrices> dailyPrices = dailyPriceRepository.findAllByStockAndDateGreaterThanEqualOrderByDateAsc(stock, startDate).stream()
-                .map(StockConverter::toDailyPrices)
-                .toList();
+        List<StockDetailDto.DailyPrices> dailyPrices = (recentTradeDay == null)
+                // 최신 거래일이 없을 경우 빈 리스트를 반환한다.
+                ? List.of()
+                // 최신 거래일을 기준으로 역산하여 시작일을 계산한다.
+                : dailyPriceRepository.findAllByStockAndDateGreaterThanEqualOrderByDateAsc(stock, calculateDay(recentTradeDay, period)).stream()
+                  .map(StockConverter::toDailyPrices)
+                  .toList();
 
         return StockDetailDto.StockDetailRes.of(stock.getStockName(), stockCode, currentPrice, comparePrev, period, dailyPrices);
     }

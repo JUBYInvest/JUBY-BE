@@ -51,7 +51,7 @@ public class MarketService {
                 .retrieve()
                 .body(CurrentPriceRes.class);
 
-        if (response == null){
+        if (response == null || !response.rtCd().equals("0") || response.output() == null){
             log.info("현재가 조회 실패");
             throw new MarketException(MarketErrorCode.DAILY_PRICE_FAILED);
         }
