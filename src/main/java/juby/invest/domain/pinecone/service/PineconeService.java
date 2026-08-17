@@ -115,7 +115,6 @@ public class PineconeService {
 
         buffer.clear();
         pendingStocks.clear();
-        log.info("뉴스 청크 모든 종목 upsert 성공");
         return flushedStockCount;
     }
 
