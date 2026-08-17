@@ -2,6 +2,7 @@ package juby.invest.domain.news.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import juby.invest.domain.news.dto.NewsDto;
 import juby.invest.domain.news.exception.code.NewsSuccessCode;
 import juby.invest.domain.news.service.NewsService;
@@ -26,7 +27,7 @@ public class NewsController {
     @GetMapping
     @Operation(summary = "검색어 기반 네이버 뉴스 검색 API", description = "검색어를 입력하면 20개의 뉴스 데이터가 반환된다.")
     public ApiResponse<NewsDto.NaverNewsRes> searchNews(
-            @RequestParam("query") String query,
+            @NotBlank @RequestParam("query") String query,
             @AuthenticationPrincipal CustomOAuth2User customOAuth2User
             ) throws ApiException {
         BaseSuccessCode successCode = NewsSuccessCode.NAVER_NEWS_SEARCH_OK;
