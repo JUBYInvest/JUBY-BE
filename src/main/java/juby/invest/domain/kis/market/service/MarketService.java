@@ -51,7 +51,7 @@ public class MarketService {
                 .retrieve()
                 .body(CurrentPriceRes.class);
 
-        if (response == null){
+        if (response == null || !response.rtCd().equals("0") || response.output() == null){
             log.info("현재가 조회 실패");
             throw new MarketException(MarketErrorCode.DAILY_PRICE_FAILED);
         }
@@ -100,7 +100,6 @@ public class MarketService {
             log.info("국내휴장일조회 API 호출 실패 {}", response == null ? "null" : response.message());
             throw new RuntimeException("국내휴장일조회 API 호출 실패");
         }
-
         return response.output();
     }
 

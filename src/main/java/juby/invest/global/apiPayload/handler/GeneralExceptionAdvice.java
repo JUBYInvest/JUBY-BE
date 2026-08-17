@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.HashMap;
@@ -22,12 +23,12 @@ public class GeneralExceptionAdvice {
     @ExceptionHandler(ProjectException.class)
     public ResponseEntity<ApiResponse<Void>> handleProjectException(ProjectException e){
         BaseErrorCode errorCode = e.getErrorCode();
-        log.error("[ProjectException] code={}, message={}", errorCode.getCode(), errorCode.getMessage(), e);
+        log.warn("[ProjectException] code={}, message={}", errorCode.getCode(), errorCode.getMessage(), e);
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.onFailure(errorCode, null));
     }
 
-    // @Valid 검증 실패 예외 처리
+    // @Valid + @RequestBody, @ModelAttribute 등 DTO 검증 실패 예외 처리
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleNotValidException(MethodArgumentNotValidException e){
 
@@ -38,6 +39,23 @@ public class GeneralExceptionAdvice {
         });
 
         BaseErrorCode errorCode = GeneralErrorCode.BAD_REQUEST;
+        log.warn("[요청 DTO 검증 예외] code={}, message={}", errorCode.getCode(), errorCode.getMessage());
+        return ResponseEntity.status(errorCode.getStatus())
+                .body(ApiResponse.onFailure(errorCode, errors));
+    }
+
+    // @RequestParam, @PathVariable 등 단일 파라미터 제약 검증 실패 예외 처리
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ApiResponse<Map<String,String>>> handleValidationException(HandlerMethodValidationException e){
+
+        // 검증 실패한 파라미터명과 실패 이유를 담을 Map
+        Map<String, String> errors = new HashMap<>();
+        e.getParameterValidationResults().forEach((error) -> {
+            errors.put(error.getMethodParameter().getParameterName(), error.getResolvableErrors().getFirst().getDefaultMessage());
+        });
+
+        BaseErrorCode errorCode = GeneralErrorCode.BAD_REQUEST;
+        log.warn("[단일 파라미터 검증 예외] code={}, message={}", errorCode.getCode(), errorCode.getMessage());
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.onFailure(errorCode, errors));
     }

@@ -14,10 +14,10 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
     boolean existsByDate(LocalDate date);
 
-    boolean existsByStock_StockCodeAndDate(String stockStockCode, LocalDate date);
-
     @Query("SELECT MAX(dp.date) FROM DailyPrice dp WHERE dp.stock = :stock")
     LocalDate findMaxDateByStock(Stock stock);
+
+    boolean existsByStockAndDate(Stock stock, LocalDate today);
 
     List<DailyPrice> findAllByStockAndDateGreaterThanEqualOrderByDateAsc(Stock stock, LocalDate dateIsGreaterThan);
 

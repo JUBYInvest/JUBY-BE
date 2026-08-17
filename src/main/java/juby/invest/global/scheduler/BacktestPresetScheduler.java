@@ -1,4 +1,4 @@
-package juby.invest.domain.backtest.scheduler;
+package juby.invest.global.scheduler;
 
 import juby.invest.domain.backtest.service.BacktestPresetService;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +15,10 @@ public class BacktestPresetScheduler {
 
     private final BacktestPresetService backtestPresetService;
 
-    // 일봉 수집(평일 22:10)이 확실히 반영되고, 사용자 트래픽이 가장 적은 새벽 시간대(오전 04:00) 에 실행
+    /***
+     * 스케줄러 동작 시각: 일봉 수집(평일 22:10)이 확실히 반영되고, 사용자 트래픽이 가장 적은 새벽 시간대(오전 04:00) 에 실행
+     * 수행 동작: 백테스트 프리셋 재계산을 수행한다.
+     */
     @Scheduled(cron = "0 0 4 * * *", zone = "Asia/Seoul")
     public void recalculatePresetResults() {
         log.info("[스케줄러-2] 백테스트 프리셋 재계산 스케줄러 동작 시작.");
