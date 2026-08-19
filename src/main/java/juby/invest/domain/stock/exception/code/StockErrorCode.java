@@ -8,7 +8,6 @@ import org.springframework.http.HttpStatus;
 @Getter
 @RequiredArgsConstructor
 public enum StockErrorCode implements BaseErrorCode {
-
     STOCK_NOT_FOUND(HttpStatus.NOT_FOUND,
             "STOCK404_1",
             "해당 종목을 찾을 수 없습니다. 정확한 종목명을 입력해주세요.")

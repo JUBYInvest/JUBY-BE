@@ -3,15 +3,15 @@ package juby.invest.domain.kis.market.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Pattern;
 import juby.invest.domain.kis.market.dto.*;
+import juby.invest.domain.kis.market.exception.code.MarketSuccessCode;
 import juby.invest.domain.kis.market.service.*;
+import juby.invest.global.apiPayload.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -25,44 +25,39 @@ public class MarketController {
     private final MarketService marketService;
 
     @Operation(summary = "주식 현재가 및 전일대비 증감 조회", description = "종목 코드를 입력 받아 현재가와 전일대비 증감액을 반환한다.")
-    @GetMapping("/price")
-    public ResponseEntity<DailyPriceDto.Output> getPrice(@Parameter(description = "종목 코드")
-            @RequestParam String code) throws InterruptedException {
-        DailyPriceDto.Output response = marketService.getDailyPrice(code);
-        return ResponseEntity.ok(response);
+    @GetMapping("/{stockCode}/price")
+    public ApiResponse<CurrentPriceRes.Info> getPrice(
+            @PathVariable @Pattern(regexp = "\\d{6}", message = "종목 코드는 6자리 숫자여야 합니다.") String stockCode) throws InterruptedException {
+        return ApiResponse.onSuccess(MarketSuccessCode.CURRENT_PRICE_OK, marketService.getDailyPrice(stockCode));
     }
 
     @Operation(summary = "주식 거래량 조회", description = "주식의 거래량 TOP 30 목록을 반환한다.")
     @GetMapping("/volume-rank")
-    public ResponseEntity<List<TradingVolumeDto.Output>> getTradingVolume() throws InterruptedException {
-        List<TradingVolumeDto.Output> response = marketService.getTradingVolume();
-        return ResponseEntity.ok(response);
+    public ApiResponse<List<TradingVolumeDto.Output>> getTradingVolume() throws InterruptedException {
+        return ApiResponse.onSuccess(MarketSuccessCode.TRADE_VOLUME_OK, marketService.getTradingVolume());
     }
 
     @Operation(summary = "주식현재가 일자별 조회", description = "종목의 30일 OHLCV정보를 조회한다.")
-    @GetMapping("/daily-stock")
-    public ResponseEntity<List<DailyStockPriceDto.Output>> getDailyStockPrice(@Parameter(description = "종목 코드")
-            @RequestParam String stockCode) throws InterruptedException {
-        List<DailyStockPriceDto.Output> dailyStockPrice = marketService.getDailyStockPrice(stockCode);
-        return ResponseEntity.ok(dailyStockPrice);
+    @GetMapping("/{stockCode}/daily-stock")
+    public ApiResponse<List<DailyPriceRes.DailyInfo>> getDailyStockPrice(
+            @PathVariable @Pattern(regexp = "\\d{6}", message = "종목 코드는 6자리 숫자여야 합니다.") String stockCode) throws InterruptedException {
+        return ApiResponse.onSuccess(MarketSuccessCode.DAILY_PRICE_OK, marketService.getDailyStockPrice(stockCode));
     }
 
     @Operation(summary = "국내주식기간별시세조회API", description = "해당 종목의 기간별(최대 100개) 시세를 조회한다.")
-    @GetMapping("/daily_itemchartprice")
-    public ResponseEntity<List<PeriodDailyPriceDto.Output>> getPeriodStockPrice(
-            @Parameter(description = "종목코드(005930)") @RequestParam("stockcode") String stockCode,
-            @Parameter(description = "시작날짜(20250303)") @RequestParam("startdate") String startDate,
-            @Parameter(description = "종료날짜(20250310") @RequestParam("enddate") String endDate) throws InterruptedException {
-        List<PeriodDailyPriceDto.Output> periodStockPrice = marketService.getPeriodStockPrice(stockCode, startDate, endDate);
-        return ResponseEntity.ok(periodStockPrice);
+    @GetMapping("/{stockCode}/daily_itemchartprice")
+    public ApiResponse<List<PeriodDailyPriceDto.Output>> getPeriodStockPrice(
+            @PathVariable @Pattern(regexp = "\\d{6}", message = "종목 코드는 6자리 숫자여야 합니다.") String stockCode,
+            @RequestParam String startDate,
+            @RequestParam String endDate) throws InterruptedException {
+        return ApiResponse.onSuccess(MarketSuccessCode.PERIOD_DAILY_PRICE_OK, marketService.getPeriodStockPrice(stockCode, startDate, endDate));
     }
 
     @Operation(summary = "국내휴장일조회API", description = "영업일,거래일 여부를 조회한다.")
     @GetMapping("/holiday")
-    public ResponseEntity<List<HolidayDto.Output>> checkHolidayList(
+    public ApiResponse<List<HolidayDto.Output>> checkHolidayList(
             @Parameter(description = "기준일자") @RequestParam("basedate") String baseDate
     ) throws InterruptedException {
-        List<HolidayDto.Output> holidayList = marketService.getHolidayList(baseDate);
-        return ResponseEntity.ok(holidayList);
+        return ApiResponse.onSuccess(MarketSuccessCode.HOLIDAY_OK, marketService.getHolidayList(baseDate));
     }
 }

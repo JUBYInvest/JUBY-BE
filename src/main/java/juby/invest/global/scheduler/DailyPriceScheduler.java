@@ -1,7 +1,6 @@
-package juby.invest.domain.kis.market.scheduler;
+package juby.invest.global.scheduler;
 
-import io.netty.handler.codec.DateFormatter;
-import juby.invest.domain.kis.market.dto.DailyPriceDto;
+import juby.invest.domain.kis.market.dto.CurrentPriceRes;
 import juby.invest.domain.kis.market.dto.HolidayDto;
 import juby.invest.domain.kis.market.service.MarketService;
 import juby.invest.domain.stock.entity.DailyPrice;
@@ -26,15 +25,20 @@ import java.util.List;
 @Profile("dev") // EC2에서만 실행
 public class DailyPriceScheduler {
 
+    private final MarketService marketService;
     private final StockRepository stockRepository;
     private final DailyPriceRepository dailyPriceRepository;
-    private final MarketService marketService;
-    private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
+    private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    /***
+     * 스케줄러 동작 시각: 월~금 22시 10분
+     * 수행 동작: 100개 종목의 금일 종가 데이터를 DB에 저장한다.
+     */
     @Scheduled(cron = "0 10 22 * * MON-FRI", zone = "Asia/Seoul")
     public void getDailyPrice() throws InterruptedException {
 
-        // 장날/휴장일인지 먼저 파악
+        // 장날 or 휴장일인지 먼저 파악. 휴장일이면 스케줄러 동작 x
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         String todayString = dateTimeFormatter.format(today);
 
@@ -45,19 +49,19 @@ public class DailyPriceScheduler {
             return;
         }
 
-        // 스케줄러 동작 시작
+        // 일봉 수집 스케줄러 동작 시작
         log.info("[스케줄러-1] 일봉 수집 스케줄러 동작 시작.");
         List<Stock> stocks = stockRepository.findAll();
-        List<DailyPrice> dailyPrices = new ArrayList<>();
+        List<DailyPrice> dailyPrices = new ArrayList<>(); // DB에 Batch 단위로 집어넣기 위해 선언
 
         for (Stock stock : stocks) {
-            if (dailyPriceRepository.existsByStock_StockCodeAndDate(stock.getStockCode(), today)){
+            if (dailyPriceRepository.existsByStockAndDate(stock, today)){
                 log.info("이미 해당 종목의 종가가 DB에 존재합니다. 종목코드: {}, 날짜: {}", stock.getStockCode(), today);
                 continue;
             }
 
             try {
-                DailyPriceDto.Output dailyPrice = marketService.getDailyPrice(stock.getStockCode());
+                CurrentPriceRes.Info dailyPrice = marketService.getDailyPrice(stock.getStockCode());
 
                 dailyPrices.add(DailyPrice.builder()
                         .stock(stock)
@@ -78,7 +82,7 @@ public class DailyPriceScheduler {
         }
 
         if (!dailyPrices.isEmpty()){
-            dailyPriceRepository.saveAll(dailyPrices);
+            dailyPriceRepository.saveAll(dailyPrices); // 정상 시행 시, 총 100개 종목 삽입
             log.info("[스케줄러-1] 일봉 수집 스케줄러 동작 완료. 총 {}개 삽입", dailyPrices.size());
         }
     }

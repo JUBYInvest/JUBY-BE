@@ -54,6 +54,8 @@ dependencies {
 
 	// pinecone 라이브러리
 	implementation 'io.pinecone:pinecone-client:6.0.0'
+	// Pinecone 호출 타임아웃을 직접 설정
+	implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
 
 test {

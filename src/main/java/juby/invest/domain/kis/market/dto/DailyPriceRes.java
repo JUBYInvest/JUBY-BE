@@ -4,12 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
-public record DailyStockPriceDto(
+public record DailyPriceRes(
         @JsonProperty("rt_cd") String rtCd,
         @JsonProperty("msg1") String message,
-        @JsonProperty("output") List<Output> output
+        @JsonProperty("output") List<DailyInfo> output
 ){
-    public record Output(
+    public record DailyInfo(
         @JsonProperty("stck_bsop_date") String date,
         @JsonProperty("stck_oprc") String openPrice,
         @JsonProperty("stck_hgpr") String highPrice,
