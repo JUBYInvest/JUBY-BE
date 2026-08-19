@@ -38,7 +38,9 @@ public class SecurityConfig {
             "/api/members/**",
             "/api/stocks/**",
             "/api/personality-tests",
-            "/mypage.html" // mypage 정보 열람 테스트용
+            "/mypage.html", // mypage 정보 열람 테스트용
+            "/openai-test.html", // openai 챗봇 테스트용
+            "/backtest-test.html" // 백테스트 프리셋 결과 조회 테스트용
     };
 
     @Bean
