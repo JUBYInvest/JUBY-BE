@@ -17,11 +17,12 @@ public class UpsertNewsToPineconeScheduler {
     private final PineconeService pineconeService;
 
     /***
-     * 스케줄러 동작 시각: 매 03:00
+     * 스케줄러 동작 시각: 24시간마다
      * 수행 동작: 1. DB에 존재하는 종목을 순회하여 각 종목당 20개의 뉴스를 호출한다.
-     *          2.  가져온 각 종목의 20개의 뉴스를 Pinecone DB에 UPSERT 한다.
+     *           2.  가져온 각 종목의 20개의 뉴스를 Pinecone DB에 UPSERT 한다.
+     * 참고: cron zone 미지정 -> JVM 기본 시간대 (Dockerfile의 -Duser.timezone) 사용
      */
-    @Scheduled(cron = "0 0 0/3 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 0 1 * *")
     public void upsertAllStockNews() {
 
         log.info("[스케줄러-3] 뉴스 벡터DB 적재 스케줄러 동작 시작.");
