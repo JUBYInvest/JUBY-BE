@@ -17,5 +17,7 @@ public record PeriodDailyPriceDto(
         @JsonProperty("stck_oprc") String openPrice,
         @JsonProperty("stck_hgpr") String highPrice,
         @JsonProperty("stck_lwpr") String lowPrice,
-        @JsonProperty("acml_vol") String volume){}
+        @JsonProperty("acml_vol") String volume,
+        @JsonProperty("acml_tr_pbmn") String tradingVolume // 누적 거래대금
+    ){}
 }

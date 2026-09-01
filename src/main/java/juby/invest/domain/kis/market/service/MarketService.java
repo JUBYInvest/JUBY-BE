@@ -16,7 +16,6 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class MarketService {
 
     @Value("${kis.real.app-key}") String realAppKey;
@@ -41,7 +40,7 @@ public class MarketService {
         CurrentPriceRes response = realInvestRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/uapi/domestic-stock/v1/quotations/inquire-price")
-                        .queryParam("FID_COND_MRKT_DIV_CODE", "J")
+                        .queryParam("FID_COND_MRKT_DIV_CODE", "J") // 조건 시장 분류 코드 J:KRX
                         .queryParam("FID_INPUT_ISCD", stockCode) // 입력 종목 코드
                         .build())
                 .header("authorization", "Bearer " + accessToken)
@@ -97,7 +96,7 @@ public class MarketService {
             log.info("국내휴장일조회 API 호출 성공");
         }
         else {
-            log.info("국내휴장일조회 API 호출 실패 {}", response == null ? "null" : response.message());
+            log.warn("국내휴장일조회 API 호출 실패 {}", response == null ? "null" : response.message());
             throw new RuntimeException("국내휴장일조회 API 호출 실패");
         }
         return response.output();
@@ -142,7 +141,7 @@ public class MarketService {
      * @param endDate 조회 종료일자 (최대 100개)
      * @return
      */
-    public List<PeriodDailyPriceDto.Output> getPeriodStockPrice(String stockCode, String startDate, String endDate) throws InterruptedException {
+    public List<PeriodDailyPriceDto.Output> getPeriodStockPrice(String stockCode, String startDate, String endDate) throws InterruptedException, MarketException {
 
         String accessToken = tokenService.getMockAccessToken().accessToken();
 
@@ -169,6 +168,7 @@ public class MarketService {
         }
         else {
             log.error("국내주식기간별시세조회API 호출실패: {}", response == null ? "호출 오류" : response.message());
+            throw new MarketException(MarketErrorCode.PERIOD_STOCK_PRICE_FAILED);
         }
         return response.output();
     }
