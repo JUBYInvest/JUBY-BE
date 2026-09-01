@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class StockService {
 
     private final StockRepository stockRepository;
@@ -53,10 +52,14 @@ public class StockService {
      *          스케줄러가 16시에 금일 데이터를 적재하므로, 적재 전에는 직전 거래일 기준으로 조회한다.
      * @return StockListRes 목록 (종목코드, 종목명, 종가, 등락률, 거래대금)
      */
+    @Transactional(readOnly = true)
     public StockListDto.StockListRes getStockList(StockListDto.StockListReq stockListReq) {
 
         // 가장 최신 날짜와 기준일의 전 날짜
         LocalDate baseDate = dailyPriceRepository.findMaxDate();
+        if (baseDate == null){
+            throw new StockException(StockErrorCode.DAILYPRICE_NOT_FOUND);
+        }
         LocalDate prevDate = dailyPriceRepository.findMaxDateBefore(baseDate);
 
         List<DailyPrice> dailyPrices = dailyPriceRepository.findAllByDateWithStock(baseDate);
