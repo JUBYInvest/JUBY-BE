@@ -49,7 +49,7 @@ public class GeneralExceptionAdvice {
     public ResponseEntity<ApiResponse<String>> handleTypeMismatchException(MethodArgumentTypeMismatchException e){
 
         // 실패한 파라미터를 담을 String
-        String detail = e.getName() + "파라미터 타입이 올바르지 않습니다.";
+        String detail = e.getName() + " 파라미터 타입이 올바르지 않습니다.";
         BaseErrorCode errorCode = GeneralErrorCode.BAD_REQUEST;
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.onFailure(errorCode, detail));
