@@ -57,29 +57,26 @@ public class BreakoutStrategy implements BacktestStrategy{
         // 매도 조건 1. 종가가 돌파 기준선 아래로 하락하거나,
         //          2. 종가가 (매수가 - 2 * ATR(14))이하로 하락
         Rule exitRule_1 = new CrossedDownIndicatorRule(closePrice, previousValue);
-        Rule exitRule_2 = new Rule() {
-            @Override
-            public boolean isSatisfied(int index, TradingRecord tradingRecord) {
+        Rule exitRule_2 = (index, tradingRecord) -> {
 
-                if (tradingRecord == null || !tradingRecord.getCurrentPosition().isOpened()){
-                    return false;
-                }
-
-                // 당일 종가
-                ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
-                Num closePrice1 = closePrice.getValue(index);
-
-                // 당일 매수가
-                Num entryPrice = tradingRecord.getCurrentPosition().getEntry().getPricePerAsset();
-
-                // 당일 ATR(14)
-                Num currentAtr = atr.getValue(index);
-
-                // 손절가 = 매수가 - (2*ATR(14))
-                Num stopPrice = entryPrice.minus(currentAtr.multipliedBy(series.numFactory().numOf(2)));
-
-                return closePrice1.isLessThanOrEqual(stopPrice);
+            if (tradingRecord == null || !tradingRecord.getCurrentPosition().isOpened()){
+                return false;
             }
+
+            // 당일 종가
+            ClosePriceIndicator closePrice2 = new ClosePriceIndicator(series);
+            Num closePrice1 = closePrice2.getValue(index);
+
+            // 당일 매수가
+            Num entryPrice = tradingRecord.getCurrentPosition().getEntry().getPricePerAsset();
+
+            // 당일 ATR(14)
+            Num currentAtr = atr.getValue(index);
+
+            // 손절가 = 매수가 - (2*ATR(14))
+            Num stopPrice = entryPrice.minus(currentAtr.multipliedBy(series.numFactory().numOf(2)));
+
+            return closePrice1.isLessThanOrEqual(stopPrice);
         };
         Rule exitRule = exitRule_1.and(exitRule_2);
 
