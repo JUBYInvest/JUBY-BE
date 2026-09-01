@@ -87,6 +87,12 @@ public class DailyPriceScheduler {
                 );
 
                 log.info("종목명: {}, 일봉 데이터 스케줄러 동작 완료.", stock.getStockName());
+
+            } catch (InterruptedException e){
+              Thread.currentThread().interrupt();
+              log.warn("[스케줄러-1] 종료 신호를 받아 일봉 수집을 중단합니다. 수집 {}개, 실패 {}개", dailyPrices.size(), failedCnt);
+              throw e;
+
             } catch (Exception e) {
                 failedCnt++;
                 log.warn("스케줄러 동작 중 문제 발생: {}, 종목명: {}", e, stock.getStockName());
@@ -94,7 +100,7 @@ public class DailyPriceScheduler {
             Thread.sleep(1200); // 모의 도메인 API 호출 제한: 1초당 1건
         }
 
-        dailyPriceRepository.saveAll(dailyPrices); // 정상 시행 시, 총 102개 종목 삽입
+        dailyPriceRepository.saveAll(dailyPrices); // 정상 시행 시, 총 100개 종목 삽입
         log.info("[스케줄러-1] 일봉 수집 스케줄러 동작 완료. 총 {}개 삽입, {}개 실패", dailyPrices.size(), failedCnt);
     }
 }
