@@ -59,6 +59,9 @@ spring:
   ai:
     openai:
       api-key: ${OPEN_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
 kis:
   mock:
     base-url: "https://openapivts.koreainvestment.com:29443"
