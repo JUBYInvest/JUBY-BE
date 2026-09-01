@@ -27,6 +27,7 @@ public class TokenService {
     private final RestClient mockInvestRestClient;
     private final RestClient realInvestRestClient;
     private final TokenRepository tokenRepository;
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Value("${kis.mock.app-key}") private String mockAppKey;
     @Value("${kis.mock.app-secret}") private String mockAppSecret;
@@ -73,13 +74,13 @@ public class TokenService {
             if (optionalKisToken.isPresent()) {
                 log.info("기존 {} 토큰이 최신화됩니다. 토큰 값: {}", tokenType, response.accessToken());
                 KisToken kisToken = optionalKisToken.get();
-                kisToken.updateToken(response.accessToken(), stringToInstantTime(response.expiresAt()));
+                kisToken.updateToken(response.accessToken(), LocalDateTime.parse(response.expiresAt(), formatter));
             } else { // 토큰이 아예 없는 경우 -> save
                 log.info("새로 {} 토큰이 발급됩니다. 토큰 값: {}", tokenType, response.accessToken());
                 KisToken kisToken = KisToken.builder()
                         .tokenType(tokenType)
                         .tokenValue(response.accessToken())
-                        .expiredAt(stringToInstantTime(response.expiresAt()))
+                        .expiredAt(LocalDateTime.parse(response.expiresAt(), formatter))
                         .build();
 
                 tokenRepository.save(kisToken);
@@ -118,21 +119,9 @@ public class TokenService {
      * @return true/false
      */
     private boolean isValid(KisToken kisToken) {
-        // 현재 시간 + 10분이 토큰의 유효시간보다 이전이어야 한다.
-        Instant nowPlus10Min = Instant.now().plus(Duration.ofMinutes(10));
+        // 현재 시간 + 10분이 토큰의 만료시간 이전이라면, true (기존 토큰 사용) 반환
+        LocalDateTime nowPlus10Min = LocalDateTime.now().plusMinutes(10);
 
         return nowPlus10Min.isBefore(kisToken.getExpiredAt());
-    }
-
-    /***
-     * String -> LocalDateTime으로 변환하는 함수
-     * @param dateStr KIS 토큰 발급 API 응답값
-     * @return 만료시간 (Instant)
-     */
-    private Instant stringToInstantTime(String dateStr) {
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDateTime localDateTime = LocalDateTime.parse(dateStr, formatter);
-        return localDateTime.atZone(ZoneId.of("Asia/Seoul")).toInstant();
     }
 }

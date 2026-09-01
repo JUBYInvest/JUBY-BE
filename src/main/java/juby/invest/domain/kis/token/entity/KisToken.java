@@ -32,9 +32,9 @@ public class KisToken {
     private String tokenValue;
 
     @Column(name = "expired_at", nullable = false)
-    private Instant expiredAt;
+    private LocalDateTime expiredAt;
 
-    public void updateToken(String updateToken, Instant updateExpiredAt) {
+    public void updateToken(String updateToken, LocalDateTime updateExpiredAt) {
         this.tokenValue = updateToken;
         this.expiredAt = updateExpiredAt;
     }
