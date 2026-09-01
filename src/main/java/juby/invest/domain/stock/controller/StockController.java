@@ -3,8 +3,8 @@ package juby.invest.domain.stock.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import juby.invest.domain.news.exception.code.NewsSuccessCode;
 import juby.invest.domain.stock.dto.StockDetailDto;
+import juby.invest.domain.stock.dto.StockListDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
 import juby.invest.domain.stock.enums.Period;
 import juby.invest.domain.stock.exception.code.StockSuccessCode;
@@ -19,10 +19,22 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/stocks")
 @Slf4j
 @RequiredArgsConstructor
-@Tag(name = "종목 상세 페이지", description = "종목 상세정보(OHLCV) 조회/ 뉴스 데이터 조회")
+@Tag(name = "홈 종목 종가 배너 / 종목 상세 페이지", description = "금일 종가 조회 / 종목 상세정보(OHLCV) 조회/ 뉴스 데이터 조회")
 public class StockController {
 
     private final StockService stockService;
+
+    /***
+     * 함수 기능: 모든 종목에 대한 종목코드, 종목명, 종가, 등락률, 거래대금 정보를 조회한다.
+     *           16시 이전에는 전일 정보, 16시 이후에는 금일 정보를 보여준다.
+     */
+    @GetMapping
+    @Operation(summary = "메인 종목 종가 조회 API", description = "메인 페이지에서 100개 종목에 대한 정보(번호, 종목명, 종가, 등락률, 거래대금)들을 제공한다.")
+    public ApiResponse<StockListDto.StockListRes> getStockList(
+            @Valid @ParameterObject @ModelAttribute StockListDto.StockListReq stockListReq
+            ){
+        return ApiResponse.onSuccess(StockSuccessCode.STOCK_LIST_OK, stockService.getStockList(stockListReq));
+    }
 
     /***
      * 함수 기능: 종목의 상세 정보를 조회한다. (기간의 OHLVC 데이터, 현재가, 전일 대비 변동률)

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
@@ -22,4 +23,25 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
     List<DailyPrice> findAllByStockAndDateGreaterThanEqualOrderByDateAsc(Stock stock, LocalDate dateIsGreaterThan);
 
     List<DailyPrice> findByStockAndDateBetweenOrderByDateAsc(Stock stock, LocalDate startDate, LocalDate endDate);
+
+    @Query("""
+        select max(dp.date)
+        from DailyPrice dp
+        """)
+    LocalDate findMaxDate();
+
+    @Query("""
+        select max(dp.date)
+        from DailyPrice dp
+        where dp.date < :baseDate
+        """)
+    LocalDate findMaxDateBefore(LocalDate baseDate);
+
+    @Query("""
+        select dp
+        from DailyPrice dp
+        join fetch dp.stock
+        where dp.date = :baseDate
+        """)
+    List<DailyPrice> findAllByDateWithStock(LocalDate baseDate);
 }

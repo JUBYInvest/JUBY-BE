@@ -10,8 +10,8 @@ import org.springframework.http.HttpStatus;
 public enum StockSuccessCode implements BaseSuccessCode {
 
     STOCK_DETAIL_OK(HttpStatus.OK,"STOCK200_1", "종목 검색 요청이 성공하였습니다."),
-    STOCK_NEWS_OK(HttpStatus.OK,"STOCK200_2" ,"종목 뉴스 조회에 성공하였습니다." ),
-    ;
+    STOCK_NEWS_OK(HttpStatus.OK,"STOCK200_2","종목 뉴스 조회에 성공하였습니다." ),
+    STOCK_LIST_OK(HttpStatus.OK,"STOCK200_3","금일 종가 보기 조회에 성공하였습니다." );
 
     private final HttpStatus status;
     private final String code;
