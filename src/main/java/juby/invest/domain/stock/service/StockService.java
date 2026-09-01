@@ -76,7 +76,7 @@ public class StockService {
                         dp.getStock().getStockName(),
                         dp.getClosePrice(),
                         calculateFluctuation(dp.getClosePrice(), prevClosePrices.get(dp.getStock().getStockCode())),
-                        dp.getTradingVolume() == null ? 0L : dp.getTradingVolume()))
+                        dp.getTradingValue() == null ? 0L : dp.getTradingValue()))
                 .sorted(stockListReq.toComparator())
                 .toList();
 

@@ -46,13 +46,13 @@ public class StockListDto {
             Double fluctuate,
             Long tradingValue
     ){
-        public static StockList of(String stockCode, String stockName, Integer closePrice, Double comparePrev, Long tradingVolume){
+        public static StockList of(String stockCode, String stockName, Integer closePrice, Double comparePrev, Long tradingValue){
             return StockList.builder()
                     .stockCode(stockCode)
                     .stockName(stockName)
                     .closePrice(closePrice)
                     .fluctuate(comparePrev)
-                    .tradingValue(tradingVolume)
+                    .tradingValue(tradingValue)
                     .build();
         }
     }

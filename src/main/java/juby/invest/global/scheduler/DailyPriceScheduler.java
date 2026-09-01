@@ -82,7 +82,7 @@ public class DailyPriceScheduler {
                         .lowPrice(Integer.parseInt(dailyPrice.lowPrice()))
                         .closePrice(Integer.parseInt(dailyPrice.closePrice()))
                         .volume(Integer.parseInt(dailyPrice.volume()))
-                        .tradingVolume(Long.parseLong(dailyPrice.tradingVolume()))
+                        .tradingValue(Long.parseLong(dailyPrice.tradingValue()))
                         .build()
                 );
 

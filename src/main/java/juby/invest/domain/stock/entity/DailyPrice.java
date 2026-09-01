@@ -38,7 +38,7 @@ public class DailyPrice {
 
     @Column(name = "volume", nullable = false)
     private Integer volume;
-
-    @Column(name = "trading_volume")
-    private Long tradingVolume;
+    
+    @Column(name = "trading_value")
+    private Long tradingValue;
 }
