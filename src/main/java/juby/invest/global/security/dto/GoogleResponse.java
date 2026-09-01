@@ -37,11 +37,11 @@ public class GoogleResponse implements OAuth2Response{
 
     @Override
     public String getBirthday() {
-        return "null";
+        return null;
     }
 
     @Override
     public String getBirthyear() {
-        return "null";
+        return null;
     }
 }
