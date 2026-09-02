@@ -1,7 +1,7 @@
 package juby.invest.global.scheduler;
 
-import juby.invest.domain.kis.market.dto.CurrentPriceRes;
 import juby.invest.domain.kis.market.dto.HolidayDto;
+import juby.invest.domain.kis.market.dto.PeriodDailyPriceDto;
 import juby.invest.domain.kis.market.service.MarketService;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
@@ -14,7 +14,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,19 +31,28 @@ public class DailyPriceScheduler {
     private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     /***
-     * 스케줄러 동작 시각: 월~금 22시 10분
+     * 스케줄러 동작 시각: 월~금 16시(본 실행), 16시 30분 / 17시 (누락 종목 보정 실행)
      * 수행 동작: 100개 종목의 금일 종가 데이터를 DB에 저장한다.
+     *          이미 수집된 종목은 existsByStockAndDate로 스킵하므로 보정 실행은 누락분만 채운다.
+     * 참고: cron zone 미지정 -> JVM 기본 시간대 (Dockerfile의 -Duser.timezone) 사용
      */
-    @Scheduled(cron = "0 10 22 * * MON-FRI", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0,30 16 * * MON-FRI")
+    @Scheduled(cron = "0 0 17 * * MON-FRI")
     public void getDailyPrice() throws InterruptedException {
 
         // 장날 or 휴장일인지 먼저 파악. 휴장일이면 스케줄러 동작 x
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate today = LocalDate.now();
         String todayString = dateTimeFormatter.format(today);
 
         List<HolidayDto.Output> holidayList = marketService.getHolidayList(todayString);
-        HolidayDto.Output first = holidayList.getFirst();
-        if (first.baseDate().equals(todayString) && first.openDay().equals("N")){
+
+        boolean isClosed = holidayList.stream()
+                .filter(day -> day.baseDate().equals(todayString))
+                .findFirst()
+                .map(day -> "N".equals(day.openDay()))
+                .orElse(false);
+
+        if (isClosed){
             log.info("[스케줄러-1] 금일({})은 휴장일이어서 스케줄러 동작 x", today);
             return;
         }
@@ -54,14 +62,17 @@ public class DailyPriceScheduler {
         List<Stock> stocks = stockRepository.findAll();
         List<DailyPrice> dailyPrices = new ArrayList<>(); // DB에 Batch 단위로 집어넣기 위해 선언
 
+        int failedCnt = 0;
         for (Stock stock : stocks) {
+
+            // 이미 수집된 종목의 현재가 시세인 경우 스킵한다.
             if (dailyPriceRepository.existsByStockAndDate(stock, today)){
-                log.info("이미 해당 종목의 종가가 DB에 존재합니다. 종목코드: {}, 날짜: {}", stock.getStockCode(), today);
+                log.info("이미 해당 종목의 데이터가 DB에 존재하므로 시세 조회를 건너뜁니다. 종목코드: {}, 날짜: {}", stock.getStockCode(), today);
                 continue;
             }
 
             try {
-                CurrentPriceRes.Info dailyPrice = marketService.getDailyPrice(stock.getStockCode());
+                PeriodDailyPriceDto.Output dailyPrice = marketService.getPeriodStockPrice(stock.getStockCode(), todayString, todayString).getFirst();
 
                 dailyPrices.add(DailyPrice.builder()
                         .stock(stock)
@@ -69,21 +80,27 @@ public class DailyPriceScheduler {
                         .openPrice(Integer.parseInt(dailyPrice.openPrice()))
                         .highPrice(Integer.parseInt(dailyPrice.highPrice()))
                         .lowPrice(Integer.parseInt(dailyPrice.lowPrice()))
-                        .closePrice(Integer.parseInt(dailyPrice.currentPrice()))
+                        .closePrice(Integer.parseInt(dailyPrice.closePrice()))
                         .volume(Integer.parseInt(dailyPrice.volume()))
+                        .tradingValue(Long.parseLong(dailyPrice.tradingValue()))
                         .build()
                 );
 
                 log.info("종목명: {}, 일봉 데이터 스케줄러 동작 완료.", stock.getStockName());
+
+            } catch (InterruptedException e){
+              Thread.currentThread().interrupt();
+              log.warn("[스케줄러-1] 종료 신호를 받아 일봉 수집을 중단합니다. 수집 {}개, 실패 {}개", dailyPrices.size(), failedCnt);
+              throw e;
+
             } catch (Exception e) {
-                log.error("스케줄러 동작 중 문제 발생: {}, 종목명: {}", e, stock.getStockName());
+                failedCnt++;
+                log.warn("스케줄러 동작 중 문제 발생: {}, 종목명: {}", e, stock.getStockName());
             }
-            Thread.sleep(500); // 실전 도메인 API 호출 제한: 1초당 18건
+            Thread.sleep(1200); // 모의 도메인 API 호출 제한: 1초당 1건
         }
 
-        if (!dailyPrices.isEmpty()){
-            dailyPriceRepository.saveAll(dailyPrices); // 정상 시행 시, 총 100개 종목 삽입
-            log.info("[스케줄러-1] 일봉 수집 스케줄러 동작 완료. 총 {}개 삽입", dailyPrices.size());
-        }
+        dailyPriceRepository.saveAll(dailyPrices); // 정상 시행 시, 총 100개 종목 삽입
+        log.info("[스케줄러-1] 일봉 수집 스케줄러 동작 완료. 총 {}개 삽입, {}개 실패", dailyPrices.size(), failedCnt);
     }
 }

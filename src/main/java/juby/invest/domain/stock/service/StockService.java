@@ -7,19 +7,26 @@ import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.pinecone.service.PineconeService;
 import juby.invest.domain.stock.converter.StockConverter;
 import juby.invest.domain.stock.dto.StockDetailDto;
+import juby.invest.domain.stock.dto.StockListDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
+import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
+import juby.invest.domain.stock.enums.Order;
 import juby.invest.domain.stock.enums.Period;
+import juby.invest.domain.stock.enums.StockSortBy;
 import juby.invest.domain.stock.exception.StockException;
 import juby.invest.domain.stock.exception.code.StockErrorCode;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +45,46 @@ public class StockService {
                             (PineconeDto.StockNewsHit hit) -> StockConverter.toPublishedAt(hit.pubDate()),
                             Comparator.nullsLast(Comparator.reverseOrder()))
                     .thenComparing(PineconeDto.StockNewsHit::id, Comparator.reverseOrder());
+
+
+    /***
+     * 함수 기능: DB에 저장된 최신 날짜를 기준으로 전 종목의 종가/등락률/거래대금을 조회한다.
+     *          스케줄러가 16시에 금일 데이터를 적재하므로, 적재 전에는 직전 거래일 기준으로 조회한다.
+     * @return StockListRes 목록 (종목코드, 종목명, 종가, 등락률, 거래대금)
+     */
+    @Transactional(readOnly = true)
+    public StockListDto.StockListRes getStockList(StockListDto.StockListReq stockListReq) {
+
+        // 가장 최신 날짜와 기준일의 전 날짜
+        LocalDate baseDate = dailyPriceRepository.findMaxDate();
+        if (baseDate == null){
+            throw new StockException(StockErrorCode.DAILYPRICE_NOT_FOUND);
+        }
+        LocalDate prevDate = dailyPriceRepository.findMaxDateBefore(baseDate);
+
+        List<DailyPrice> dailyPrices = dailyPriceRepository.findAllByDateWithStock(baseDate);
+
+        // 기준일 전날의 종가 데이터를 Map으로 변환
+        Map<String, Integer> prevClosePrices = (prevDate == null)
+                ? Map.of()
+                : dailyPriceRepository.findAllByDateWithStock(prevDate).stream()
+                  .collect(Collectors.toMap(
+                          dp -> dp.getStock().getStockCode(),
+                          DailyPrice::getClosePrice,
+                          (existing, duplicate) -> existing));
+
+        List<StockListDto.StockList> stockList = dailyPrices.stream()
+                .map(dp -> StockListDto.StockList.of(
+                        dp.getStock().getStockCode(),
+                        dp.getStock().getStockName(),
+                        dp.getClosePrice(),
+                        calculateFluctuation(dp.getClosePrice(), prevClosePrices.get(dp.getStock().getStockCode())),
+                        dp.getTradingValue() == null ? 0L : dp.getTradingValue()))
+                .sorted(stockListReq.toComparator())
+                .toList();
+
+        return StockListDto.StockListRes.of(baseDate, stockList);
+    }
 
     /***
      * 함수 기능: 종목 상세 정보 (Period 기간의 OHLCV 데이터, 전일 대비 변동률)를 제공한다.
@@ -104,6 +151,17 @@ public class StockService {
                 .toList();
 
         return StockNewsDto.StockNewsRes.of(stockCode, stock.getStockName(), sort, newsList, page, hits.size());
+    }
+
+    // 가장 최근 날짜와 날짜의 전일의 변동률을 계산한다.
+    double calculateFluctuation(Integer closePrice, Integer prevClosePrice) {
+
+        if (prevClosePrice == null || prevClosePrice == 0){
+            return 0.0;
+        }
+
+        // 변동률은 소수 둘째 자리까지
+        return Math.round((double) (closePrice - prevClosePrice) / prevClosePrice * 10000) / 100.0;
     }
 
     // 오늘날짜를 기준으로 역산하여 시작일을 계산한다.

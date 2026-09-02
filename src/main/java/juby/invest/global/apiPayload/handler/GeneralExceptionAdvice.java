@@ -19,7 +19,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class GeneralExceptionAdvice {
 
-    // 프로젝트 예외 처리
+    // 프로젝트 전용 예외 처리
     @ExceptionHandler(ProjectException.class)
     public ResponseEntity<ApiResponse<Void>> handleProjectException(ProjectException e){
         BaseErrorCode errorCode = e.getErrorCode();
@@ -28,7 +28,7 @@ public class GeneralExceptionAdvice {
                 .body(ApiResponse.onFailure(errorCode, null));
     }
 
-    // @Valid + @RequestBody, @ModelAttribute 등 DTO 검증 실패 예외 처리
+    // @ModelAttribute의 타입 변환 실패 혹은 검증 실패, @RequestBody의 검증 실패
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleNotValidException(MethodArgumentNotValidException e){
 
@@ -44,7 +44,18 @@ public class GeneralExceptionAdvice {
                 .body(ApiResponse.onFailure(errorCode, errors));
     }
 
-    // @RequestParam, @PathVariable 등 단일 파라미터 제약 검증 실패 예외 처리
+    // @PathVariable, @RequestParam (단일 파라미터)의 타입 변환 실패
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<String>> handleTypeMismatchException(MethodArgumentTypeMismatchException e){
+
+        // 실패한 파라미터를 담을 String
+        String detail = e.getName() + " 파라미터 타입이 올바르지 않습니다.";
+        BaseErrorCode errorCode = GeneralErrorCode.BAD_REQUEST;
+        return ResponseEntity.status(errorCode.getStatus())
+                .body(ApiResponse.onFailure(errorCode, detail));
+    }
+
+    // @PathVariable, @RequestParam (단일 파라미터)의 검증 실패    
     @ExceptionHandler(HandlerMethodValidationException.class)
     public ResponseEntity<ApiResponse<Map<String,String>>> handleValidationException(HandlerMethodValidationException e){
 
@@ -60,18 +71,7 @@ public class GeneralExceptionAdvice {
                 .body(ApiResponse.onFailure(errorCode, errors));
     }
 
-    // enum 타입 파라미터 바인딩 예외 처리
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiResponse<String>> handleTypeMismatchException(MethodArgumentTypeMismatchException e){
-
-        // 실패한 파라미터를 담을 String
-        String detail = e.getName() + "파라미터 타입이 올바르지 않습니다.";
-        BaseErrorCode errorCode = GeneralErrorCode.BAD_REQUEST;
-        return ResponseEntity.status(errorCode.getStatus())
-                .body(ApiResponse.onFailure(errorCode, detail));
-    }
-
-    // 지정되지 않은 예외 처리
+    // 그 외 지정되지 않은 예외 처리
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiResponse<String>> handleGlobalException(RuntimeException e){
 
