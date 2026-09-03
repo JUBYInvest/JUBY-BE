@@ -11,9 +11,7 @@ import juby.invest.domain.stock.dto.StockListDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
-import juby.invest.domain.stock.enums.Order;
 import juby.invest.domain.stock.enums.Period;
-import juby.invest.domain.stock.enums.StockSortBy;
 import juby.invest.domain.stock.exception.StockException;
 import juby.invest.domain.stock.exception.code.StockErrorCode;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
@@ -27,6 +25,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static juby.invest.domain.stock.converter.StockConverter.calculateFluctuation;
 
 @Service
 @RequiredArgsConstructor
@@ -151,17 +151,6 @@ public class StockService {
                 .toList();
 
         return StockNewsDto.StockNewsRes.of(stockCode, stock.getStockName(), sort, newsList, page, hits.size());
-    }
-
-    // 가장 최근 날짜와 날짜의 전일의 변동률을 계산한다.
-    double calculateFluctuation(Integer closePrice, Integer prevClosePrice) {
-
-        if (prevClosePrice == null || prevClosePrice == 0){
-            return 0.0;
-        }
-
-        // 변동률은 소수 둘째 자리까지
-        return Math.round((double) (closePrice - prevClosePrice) / prevClosePrice * 10000) / 100.0;
     }
 
     // 오늘날짜를 기준으로 역산하여 시작일을 계산한다.
