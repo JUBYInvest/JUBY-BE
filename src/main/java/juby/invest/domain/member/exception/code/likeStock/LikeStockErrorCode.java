@@ -1,4 +1,4 @@
-package juby.invest.domain.member.exception.code;
+package juby.invest.domain.member.exception.code.likeStock;
 
 import juby.invest.global.apiPayload.code.BaseErrorCode;
 import lombok.Getter;

@@ -7,7 +7,7 @@ import juby.invest.domain.member.entity.LikeStock;
 import juby.invest.domain.member.entity.Member;
 import juby.invest.domain.member.exception.LikeStockException;
 import juby.invest.domain.member.exception.MemberException;
-import juby.invest.domain.member.exception.code.LikeStockErrorCode;
+import juby.invest.domain.member.exception.code.likeStock.LikeStockErrorCode;
 import juby.invest.domain.member.exception.code.member.MemberErrorCode;
 import juby.invest.domain.member.repository.LikeStockRepository;
 import juby.invest.domain.member.repository.MemberRepository;
