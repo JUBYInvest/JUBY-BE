@@ -1,5 +1,7 @@
 package juby.invest.domain.stock.service;
 
+import juby.invest.domain.stock.converter.StockConverter;
+import juby.invest.domain.stock.entity.Stock;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,8 +17,6 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("StockService 등락률 계산")
 class StockServiceTest {
 
-    private final StockService stockService = new StockService(null, null, null, null);
-
     @DisplayName("전일 종가 대비 등락률을 소수 둘째 자리까지 반환한다")
     @ParameterizedTest(name = "종가 {0}원, 전일 종가 {1}원 -> {2}%")
     @CsvSource({
@@ -31,7 +31,7 @@ class StockServiceTest {
     })
     void calculateFluctuation(int closePrice, int prevClosePrice, double expected){
 
-        double actual = stockService.calculateFluctuation(closePrice, prevClosePrice);
+        double actual = StockConverter.calculateFluctuation(closePrice, prevClosePrice);
 
         assertThat(actual).isEqualTo(expected);
     }
@@ -43,13 +43,13 @@ class StockServiceTest {
         @Test
         @DisplayName("전일 종가가 null이면 0.0을 반환한다")
         void returnZeroWhenPrevCloseIsNull(){
-            assertThat(stockService.calculateFluctuation(70000, null)).isZero();
+            assertThat(StockConverter.calculateFluctuation(70000, null)).isZero();
         }
 
         @Test
         @DisplayName("전일 종가가 0이면 0으로 나누지 않고, 0.0을 반환한다")
         void returnZeroWhenPrevCloseIsZero(){
-            assertThat(stockService.calculateFluctuation(80000, 0)).isZero();
+            assertThat(StockConverter.calculateFluctuation(80000, 0)).isZero();
         }
     }
 
@@ -57,7 +57,7 @@ class StockServiceTest {
     @DisplayName("결과는 항상 소수 둘째 자리 이하이다")
     void alwaysHasAtMostTwoDecimals(){
         for (int closePrice = 7000; closePrice <= 13000; closePrice++){
-            double actual = stockService.calculateFluctuation(closePrice, 10000);
+            double actual = StockConverter.calculateFluctuation(closePrice, 10000);
 
             assertThat(BigDecimal.valueOf(actual).scale())
                     .as("종가 %d원의 등락률 %s", closePrice, actual)
