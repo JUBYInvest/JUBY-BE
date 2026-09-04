@@ -7,6 +7,8 @@ import juby.invest.domain.member.enums.Role;
 import juby.invest.domain.member.repository.LikeStockRepository;
 import juby.invest.domain.member.repository.MemberRepository;
 import juby.invest.domain.stock.entity.Stock;
+import juby.invest.domain.stock.exception.StockException;
+import juby.invest.domain.stock.exception.code.StockErrorCode;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.stock.repository.StockRepository;
 import juby.invest.global.security.entity.CustomOAuth2User;
@@ -19,9 +21,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -68,6 +72,30 @@ class LikeStockServiceTest {
             // then
             assertThat(likeStockRes.liked()).isTrue();
             then(likeStockRepository).should().save(any(LikeStock.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("관심 종목 목록 조회")
+    class GetLikeStockList {
+
+        @Test
+        @DisplayName("관심 종목은 있지만 daily_price가 비어 있으면 DAILYPRICE_NOT_FOUND 예외를 던진다")
+        void throwsWhenDailyPriceIsEmpty() {
+
+            // given
+            Stock stock = new Stock("005930", "삼성전자");
+            LikeStock likeStock = LikeStock.builder().member(member).stock(stock).build();
+            given(likeStockRepository.findAllByMemberIdWithStock(1L)).willReturn(List.of(likeStock));
+            given(dailyPriceRepository.findMaxDate()).willReturn(null);
+
+            // when & then
+            assertThatThrownBy(() -> likeStockService.getLikeStockList(user))
+                    .isInstanceOf(StockException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", StockErrorCode.DAILYPRICE_NOT_FOUND);
+
+            then(dailyPriceRepository).should(org.mockito.Mockito.never())
+                    .findMaxDateBefore(any());
         }
     }
 }

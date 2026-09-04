@@ -24,6 +24,7 @@ public interface LikeStockRepository extends JpaRepository<LikeStock, Long> {
         from LikeStock ls
         join fetch ls.stock s
         where ls.member.id = :memberId
+        order by ls.likedAt desc, ls.id desc
     """)
     List<LikeStock> findAllByMemberIdWithStock(Long memberId);
 

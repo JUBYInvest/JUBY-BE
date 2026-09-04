@@ -113,7 +113,10 @@ public class LikeStockService {
 
         // 최신 거래일과 직전 거래일을 구한다.
         LocalDate baseDate = dailyPriceRepository.findMaxDate();
-        LocalDate prevDate = (baseDate == null) ? null : dailyPriceRepository.findMaxDateBefore(baseDate);
+        if (baseDate == null){
+            throw new StockException(StockErrorCode.DAILYPRICE_NOT_FOUND);
+        }
+        LocalDate prevDate = dailyPriceRepository.findMaxDateBefore(baseDate);
 
         // 최신 거래일과 직전 거래일의 DailyPrice 정보를 Map에 저장한다.
         Map<String, DailyPrice> basePrices = toPriceMap(baseDate, stockCodes);
