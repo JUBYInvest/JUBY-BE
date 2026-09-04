@@ -77,6 +77,17 @@ public class StockConverter {
                 .build();
     }
 
+    // 가장 최근 날짜와 날짜의 전일의 변동률을 계산한다.
+    public static double calculateFluctuation(Integer closePrice, Integer prevClosePrice) {
+
+        if (prevClosePrice == null || prevClosePrice == 0){
+            return 0.0;
+        }
+
+        // 변동률은 소수 둘째 자리까지
+        return Math.round((double) (closePrice - prevClosePrice) / prevClosePrice * 10000) / 100.0;
+    }
+
     // 발행시각을 "방금 전 / N분 전 / N시간 전 / N일 전" 형태로 바꾼다.
     private static String toTimeAgo(LocalDateTime publishedAt, LocalDateTime now) {
         if (publishedAt == null){

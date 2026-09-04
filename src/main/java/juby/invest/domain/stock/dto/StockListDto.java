@@ -44,15 +44,17 @@ public class StockListDto {
             String stockName,
             Integer closePrice,
             Double fluctuate,
-            Long tradingValue
+            Long tradingValue,
+            boolean isLiked
     ){
-        public static StockList of(String stockCode, String stockName, Integer closePrice, Double comparePrev, Long tradingValue){
+        public static StockList of(String stockCode, String stockName, Integer closePrice, Double comparePrev, Long tradingValue, boolean isLiked){
             return StockList.builder()
                     .stockCode(stockCode)
                     .stockName(stockName)
                     .closePrice(closePrice)
                     .fluctuate(comparePrev)
                     .tradingValue(tradingValue)
+                    .isLiked(isLiked)
                     .build();
         }
     }
