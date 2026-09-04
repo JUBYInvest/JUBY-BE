@@ -10,9 +10,11 @@ import juby.invest.domain.stock.enums.Period;
 import juby.invest.domain.stock.exception.code.StockSuccessCode;
 import juby.invest.domain.stock.service.StockService;
 import juby.invest.global.apiPayload.ApiResponse;
+import juby.invest.global.security.entity.CustomOAuth2User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -31,9 +33,10 @@ public class StockController {
     @GetMapping
     @Operation(summary = "메인 종목 종가 조회 API", description = "메인 페이지에서 100개 종목에 대한 정보(번호, 종목명, 종가, 등락률, 거래대금)들을 제공한다.")
     public ApiResponse<StockListDto.StockListRes> getStockList(
+            @AuthenticationPrincipal CustomOAuth2User user,
             @Valid @ParameterObject @ModelAttribute StockListDto.StockListReq stockListReq
             ){
-        return ApiResponse.onSuccess(StockSuccessCode.STOCK_LIST_OK, stockService.getStockList(stockListReq));
+        return ApiResponse.onSuccess(StockSuccessCode.STOCK_LIST_OK, stockService.getStockList(user, stockListReq));
     }
 
     /***

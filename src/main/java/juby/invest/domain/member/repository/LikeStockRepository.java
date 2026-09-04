@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface LikeStockRepository extends JpaRepository<LikeStock, Long> {
 
@@ -25,4 +26,11 @@ public interface LikeStockRepository extends JpaRepository<LikeStock, Long> {
         where ls.member.id = :memberId
     """)
     List<LikeStock> findAllByMemberIdWithStock(Long memberId);
+
+    @Query("""
+        select ls.stock.stockCode
+        from LikeStock ls
+        where ls.member.id = :memberId
+    """)
+    Set<String> findStockCodesByMemberId(Long memberId);
 }
