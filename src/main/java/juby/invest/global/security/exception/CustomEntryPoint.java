@@ -23,7 +23,11 @@ public class CustomEntryPoint implements AuthenticationEntryPoint {
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
 
         ObjectMapper objectMapper = new ObjectMapper();
-        BaseErrorCode errorCode = GeneralErrorCode.UNAUTHORIZED;
+
+        Object exception = request.getAttribute("exception");
+        BaseErrorCode errorCode = (exception instanceof BaseErrorCode ec)
+                ? ec
+                : GeneralErrorCode.UNAUTHORIZED;
 
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(errorCode.getStatus().value());

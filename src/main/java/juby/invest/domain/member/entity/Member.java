@@ -46,6 +46,10 @@ public class Member {
     @Column(name = "provider_id")
     private String providerId;
 
+    @Column(name = "is_onboarded", nullable = false)
+    @Builder.Default
+    private boolean isOnboarded = false;
+
     public void updatePersonality(Personality personality){
         this.personality = personality;
     }

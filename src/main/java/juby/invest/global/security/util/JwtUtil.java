@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -36,8 +37,10 @@ public class JwtUtil {
 
         Date now = new Date();
         Date expiration = new Date(now.getTime() + accessTokenValidity);
+        String jti = UUID.randomUUID().toString(); // JWT ID
 
         return Jwts.builder()
+                .id(jti)
                 .subject(String.valueOf(userId))
                 .claim("typ", "access")
                 .claim("role", role)
@@ -63,36 +66,25 @@ public class JwtUtil {
     }
 
     /***
-     * 토큰의 유효성을 검증한다.
-     * @param token
-     * @return
+     * 함수 기능: 토큰의 유효성을 검사하고 Claims를 추출한다.
+     * @param token JWT
+     * @return Claims
      */
-    public boolean validateToken(String token){
-        try {
-            Jwts.parser()
+    public Claims parseClaims(String token){
+            return Jwts.parser()
                     .verifyWith(secretKey)
                     .clockSkewSeconds(60)
                     .build()
-                    .parseSignedClaims(token);
-            return true;
-        } catch (Exception e){
-            log.info("validateToken 검증 실패. {}", e.getMessage());
-            return false;
-        }
+                    .parseSignedClaims(token)
+                    .getPayload();
     }
 
     /***
-     * 토큰의 payload에서 정보를 꺼내어 Authentication 객체를 재조립한다.
-     * @param token
-     * @return
+     * 함수 기능: 토큰의 payload에서 claims를 꺼내어 인증 객체를 조립한다.
+     * @param claims JWT Payload의 Claim들
+     * @return Authentication 인증객체
      */
-    public Authentication getAuthentication(String token){
-
-        Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+    public Authentication getAuthentication(Claims claims){
 
         Long userId = Long.parseLong(claims.getSubject());
         Role role = Role.valueOf(claims.get("role", String.class));

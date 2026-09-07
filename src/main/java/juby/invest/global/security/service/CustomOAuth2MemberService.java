@@ -73,7 +73,7 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
                         .birth(parseBirth(oAuth2Response.getBirthyear(), oAuth2Response.getBirthday()))
                         .build()));
 
-        log.info("로그인 혹은 DB에 새로 추가된 Member: {}", member);
+        log.info("소셜 로그인 성공, 이름={}, 이메일={}", member.getName(), member.getEmail());
 
         return new CustomOAuth2User(member.getId(), member.getRole(), member.getName());
     }
