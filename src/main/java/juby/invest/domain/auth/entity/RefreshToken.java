@@ -20,12 +20,11 @@ public class RefreshToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
-    @JoinColumn(name = "member_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false, unique = true)
     private Member member;
 
-    @Column(name = "token", nullable = false, length = 1000)
-    @Convert(converter = TokenConverter.class)
+    @Column(name = "token", nullable = false, length = 43)
     private String token;
 
     @Column(name = "expires_at", nullable = false)

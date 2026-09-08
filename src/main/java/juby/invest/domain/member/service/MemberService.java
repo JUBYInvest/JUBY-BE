@@ -36,6 +36,7 @@ public class MemberService {
                 .email(member.getEmail())
                 .birth(member.getBirth())
                 .socialType(member.getSocialType())
+                .isOnboarded(member.isOnboarded())
                 .build();
     }
 

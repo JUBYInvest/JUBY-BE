@@ -2,6 +2,7 @@ package juby.invest.global.config;
 
 import juby.invest.global.security.exception.CustomAccessDenied;
 import juby.invest.global.security.exception.CustomEntryPoint;
+import juby.invest.global.security.handler.OAuth2FailureHandler;
 import juby.invest.global.security.handler.OAuth2SuccessHandler;
 import juby.invest.global.security.service.CustomOAuth2MemberService;
 import juby.invest.global.security.filter.JwtAuthenticationFilter;
@@ -16,6 +17,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ public class SecurityConfig {
 
     private final CustomOAuth2MemberService customOAuth2MemberService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomEntryPoint customEntryPoint;
     private final CustomAccessDenied customAccessDenied;
@@ -59,6 +62,7 @@ public class SecurityConfig {
 
                 .oauth2Login((oauth2) -> oauth2
                         .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
                         .userInfoEndpoint(userInfoEndpoint -> userInfoEndpoint
                                 .userService(customOAuth2MemberService)))
 

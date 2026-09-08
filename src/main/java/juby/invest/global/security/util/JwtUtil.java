@@ -1,6 +1,7 @@
 package juby.invest.global.security.util;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import juby.invest.global.security.entity.CustomOAuth2User;
@@ -85,6 +86,10 @@ public class JwtUtil {
      * @return Authentication 인증객체
      */
     public Authentication getAuthentication(Claims claims){
+
+        if (!"access".equals(claims.get("typ", String.class))){
+            throw new JwtException("토큰 타입 불일치");
+        }
 
         Long userId = Long.parseLong(claims.getSubject());
         Role role = Role.valueOf(claims.get("role", String.class));

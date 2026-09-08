@@ -87,6 +87,7 @@ public class PersonalityTestService {
         // DB에 저장
         Personality findPersonality = personalityRepository.findByInvestPersonality(personality);
         member.updatePersonality(findPersonality);
+        member.completeOnboard();
 
         return TestResponseDto.TestResultRes.builder()
                 .memberId(userId)

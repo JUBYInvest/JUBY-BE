@@ -7,6 +7,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class CookieUtil {
 
+    private static final String RT_COOKIE_NAME = "refreshToken";
+    private static final String RT_COOKIE_PATH = "/api/auth";
+
     @Value("${jwt.refresh-token-validity}") private long rtValidity;
 
     /***
@@ -15,9 +18,9 @@ public class CookieUtil {
      * @return RT 쿠키
      */
     public String createRTCookie(String refreshToken) {
-        return ResponseCookie.from("refreshToken", refreshToken)
+        return ResponseCookie.from(RT_COOKIE_NAME, refreshToken)
                 .maxAge(rtValidity/1000)
-                .path("/")
+                .path(RT_COOKIE_PATH)
                 .secure(false)
                 .sameSite("Lax")
                 .httpOnly(true)

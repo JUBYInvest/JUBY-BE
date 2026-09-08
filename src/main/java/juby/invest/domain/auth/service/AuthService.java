@@ -2,6 +2,7 @@ package juby.invest.domain.auth.service;
 
 import juby.invest.domain.auth.entity.RefreshToken;
 import juby.invest.domain.auth.repository.RefreshTokenRepository;
+import juby.invest.domain.auth.util.TokenHasher;
 import juby.invest.domain.member.entity.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,12 +33,12 @@ public class AuthService {
         refreshTokenRepository.findByMember(member)
                 .ifPresentOrElse( // 기존 RT가 존재하면 값 업데이트
                         existingRT -> {
-                            existingRT.updateToken(refreshToken, expiresAt);
+                            existingRT.updateToken(TokenHasher.hash(refreshToken), expiresAt);
                         },
                         () -> { // 기존 RT가 없다면 새로 저장
                             RefreshToken rt = RefreshToken.builder()
                                     .member(member)
-                                    .token(refreshToken)
+                                    .token(TokenHasher.hash(refreshToken))
                                     .expiresAt(expiresAt)
                                     .build();
                             refreshTokenRepository.save(rt);

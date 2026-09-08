@@ -53,14 +53,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         authService.saveOrUpdateRT(member, refreshToken);
 
         // 소셜 로그인 성공 시, 프론트 주소로 리다이렉트
-        redirect(request, response, member, accessToken, refreshToken);
+        redirect(request, response, accessToken, refreshToken);
     }
 
-    // 소설로그인 성공 후, 프론트로 회원 이름과 온보딩 여부, AT, RT 정보를 담아 리다이렉션 시킨다.
+    // AT는 프래그먼트로, RT는 쿠키로 전달하고 프론트로 리다이렉트한다.
     private void redirect(
             HttpServletRequest request,
             HttpServletResponse response,
-            Member member,
             String accessToken,
             String refreshToken) throws IOException {
 
@@ -69,8 +68,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         // 프론트 URL로 리다이렉트 주소 조립
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUrl)
-                .queryParam("name", member.getName())
-                .queryParam("isOnboarded", member.isOnboarded())
                 .build()
                 .encode()
                 .toUriString();

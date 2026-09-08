@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
@@ -40,42 +41,50 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
 
-        OAuth2User oAuth2User = super.loadUser(userRequest);
-        log.info("oAuth2User = {} ", oAuth2User.getAttributes());
-
         String registrationId = userRequest.getClientRegistration().getRegistrationId(); // Returns the identifier for the registration
-        OAuth2Response oAuth2Response;
 
-        if (registrationId.equals("google")){
-            oAuth2Response = new GoogleResponse(oAuth2User.getAttributes());
-        }
-        else if (registrationId.equals("naver")){
-            oAuth2Response = new NaverResponse(oAuth2User.getAttribute("response"));
-        }
-        else if (registrationId.equals("kakao")){
-            String providerId = String.valueOf((Long)oAuth2User.getAttribute("id"));
-            Map<String, Object> attributes = oAuth2User.getAttribute("kakao_account");
-            Map<String, Object> profile = (Map<String, Object>) attributes.get("profile");
-            oAuth2Response = new KakaoResponse(providerId, attributes.get("email").toString(), profile.get("nickname").toString());
-        }
-        else {
-            throw new OAuth2AuthenticationException("해당 provider는 존재하지 않습니다." + registrationId);
-        }
+        try {
+            OAuth2User oAuth2User = super.loadUser(userRequest);
+            log.info("oAuth2User = {} ", oAuth2User.getAttributes());
 
-        // 기존 회원이 아니면 DB에 추가
-        Member member = memberRepository.findBySocialTypeAndProviderId(oAuth2Response.getProvider(), oAuth2Response.getProviderId())
-                .orElseGet(() -> memberRepository.save(Member.builder()
-                        .email(oAuth2Response.getEmail())
-                        .name(oAuth2Response.getName())
-                        .providerId(oAuth2Response.getProviderId())
-                        .socialType(oAuth2Response.getProvider())
-                        .role(Role.USER)
-                        .birth(parseBirth(oAuth2Response.getBirthyear(), oAuth2Response.getBirthday()))
-                        .build()));
+            OAuth2Response oAuth2Response;
 
-        log.info("소셜 로그인 성공, 이름={}, 이메일={}", member.getName(), member.getEmail());
+            if (registrationId.equals("google")){
+                oAuth2Response = new GoogleResponse(oAuth2User.getAttributes());
+            }
+            else if (registrationId.equals("naver")){
+                oAuth2Response = new NaverResponse(oAuth2User.getAttribute("response"));
+            }
+            else if (registrationId.equals("kakao")){
+                String providerId = String.valueOf((Long)oAuth2User.getAttribute("id"));
+                Map<String, Object> attributes = oAuth2User.getAttribute("kakao_account");
+                Map<String, Object> profile = (Map<String, Object>) attributes.get("profile");
+                oAuth2Response = new KakaoResponse(providerId, attributes.get("email").toString(), profile.get("nickname").toString());
+            }
+            else {
+                throw new OAuth2AuthenticationException("해당 provider는 존재하지 않습니다." + registrationId);
+            }
 
-        return new CustomOAuth2User(member.getId(), member.getRole(), member.getName());
+            // 기존 회원이 아니면 DB에 추가
+            Member member = memberRepository.findBySocialTypeAndProviderId(oAuth2Response.getProvider(), oAuth2Response.getProviderId())
+                    .orElseGet(() -> memberRepository.save(Member.builder()
+                            .email(oAuth2Response.getEmail())
+                            .name(oAuth2Response.getName())
+                            .providerId(oAuth2Response.getProviderId())
+                            .socialType(oAuth2Response.getProvider())
+                            .role(Role.USER)
+                            .birth(parseBirth(oAuth2Response.getBirthyear(), oAuth2Response.getBirthday()))
+                            .build()));
+
+            log.info("소셜 로그인 성공, 이름={}, 이메일={}", member.getName(), member.getEmail());
+
+            return new CustomOAuth2User(member.getId(), member.getRole(), member.getName());
+        } catch (OAuth2AuthenticationException e){
+            throw e;
+        } catch (Exception e){
+            log.error("소셜 로그인 처리 실패, provider={}", registrationId, e);
+            throw new OAuth2AuthenticationException(new OAuth2Error("login_failed"), e);
+        }
     }
 
     /***

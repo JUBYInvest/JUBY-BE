@@ -50,6 +50,12 @@ public class Member {
     @Builder.Default
     private boolean isOnboarded = false;
 
+    // 온보딩을 참으로 변경한다.
+    public void completeOnboard(){
+        this.isOnboarded = true;
+    }
+
+    // 회원의 투자 성향을 업데이트 한다.
     public void updatePersonality(Personality personality){
         this.personality = personality;
     }

@@ -22,7 +22,7 @@ spring:
 app:
   oauth2:
     redirect-uri: http://localhost:5173/oauth2/callback
-    failure-redirection-uri: http://localhost:5173/error
+    failure-redirect-uri: http://localhost:5173/oauth2/error
 
 logging:
   level:
