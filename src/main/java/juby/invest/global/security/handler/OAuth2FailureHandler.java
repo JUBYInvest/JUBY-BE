@@ -9,14 +9,13 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.web.method.support.UriComponentsContributor;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 
 /***
  * 소셜 로그인 실패 시, 프론트로 에러 코드를 실어 리다이렉트한다.
- * OAuth2LoginAuthenticationFilter의 catch 블록에서 호출횐다.
+ * OAuth2LoginAuthenticationFilter의 catch 블록에서 호출된다.
  */
 @Component
 @Slf4j
@@ -29,6 +28,11 @@ public class OAuth2FailureHandler extends SimpleUrlAuthenticationFailureHandler 
 
         log.warn("소셜 로그인 실패", exception);
 
+        redirect(request, response, exception);
+    }
+
+    // 에러 코드를 포함해 프론트로 리다이렉트한다.
+    private void redirect(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException {
         String targetUrl = UriComponentsBuilder.fromUriString(failureUri)
                 .queryParam("error", resolveErrorCode(exception))
                 .build()

@@ -1,6 +1,5 @@
 package juby.invest.global.scheduler;
 
-import juby.invest.domain.auth.entity.AccessTokenBlacklist;
 import juby.invest.domain.auth.repository.AccessTokenBlacklistRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

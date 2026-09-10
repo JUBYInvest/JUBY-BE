@@ -14,7 +14,10 @@ public enum MemberErrorCode implements BaseErrorCode {
             "회원을 찾을 수 없습니다."),
     PERSONALITY_NOT_FOUND(HttpStatus.NOT_FOUND,
             "MEMBER404_2",
-            "투자유형 정보를 찾을 수 없습니다.");
+            "투자유형 정보를 찾을 수 없습니다."),
+    ALREADY_DELETED_MEMBER(HttpStatus.CONFLICT,
+            "MEMBER409_1",
+            "이미 탈퇴한 회원입니다.");
 
     private final HttpStatus status;
     private final String code;

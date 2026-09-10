@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.UUID;
 
@@ -82,20 +84,30 @@ public class JwtUtil {
 
     /***
      * 함수 기능: 토큰의 payload에서 claims를 꺼내어 인증 객체를 조립한다.
+     *          토큰만 보고 판별할 수 있는 것만 검사한다.
+     *          블랙리스트 등록 여부는 DB 상태이므로 필터에서 별도로 확인한다.
      * @param claims JWT Payload의 Claim들
      * @return Authentication 인증객체
      */
     public Authentication getAuthentication(Claims claims){
 
+        // 토큰 타입 = "access"인지 확인
         if (!"access".equals(claims.get("typ", String.class))){
             throw new JwtException("토큰 타입 불일치");
+        }
+
+        // 블랙리스트 조회 키이므로 없으면 무효 토큰으로 본다.
+        String jti = claims.getId();
+        if (jti == null){
+            throw new JwtException("jti가 없는 토큰입니다.");
         }
 
         Long userId = Long.parseLong(claims.getSubject());
         Role role = Role.valueOf(claims.get("role", String.class));
         String name = claims.get("name", String.class);
+        LocalDateTime expiresAt = LocalDateTime.ofInstant(claims.getExpiration().toInstant(), ZoneId.systemDefault());
 
-        CustomOAuth2User principal = new CustomOAuth2User(userId, role, name);
+        CustomOAuth2User principal = new CustomOAuth2User(userId, role, name, jti, expiresAt);
         return new UsernamePasswordAuthenticationToken(principal, "", principal.getAuthorities());
     }
 }

@@ -7,9 +7,9 @@ import juby.invest.global.security.handler.OAuth2SuccessHandler;
 import juby.invest.global.security.service.CustomOAuth2MemberService;
 import juby.invest.global.security.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -17,7 +17,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
@@ -31,6 +35,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomEntryPoint customEntryPoint;
     private final CustomAccessDenied customAccessDenied;
+
+    // 프론트 origin. 프로필마다 다르므로 프로퍼티로 주입받는다.
+    @Value("${app.cors.allowed-origins}") private String[] allowedOrigins;
 
     // 허용 url
     private final String[] allowUris = {
@@ -51,7 +58,7 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
 
-                .cors(Customizer.withDefaults())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -79,5 +86,29 @@ public class SecurityConfig {
                         .authenticationEntryPoint(customEntryPoint)
                         .accessDeniedHandler(customAccessDenied));
         return http.build();
+    }
+
+    /***
+     * 함수 기능: CORS 정책을 정의한다.
+     *          빈으로 두지 않으면 시큐리티가 HandlerMappingIntrospector로 MVC 설정을 빌려오는
+     *          암묵적 동작에 기대게 되므로, 인증 경로의 정책은 여기서 명시적으로 관리한다.
+     * @return CORS 설정
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // RT 쿠키를 주고받아야 하므로 credentials를 허용한다.
+        // 이 경우 origin에 와일드카드(*)를 쓸 수 없어 정확한 주소를 나열해야 한다.
+        configuration.setAllowedOrigins(List.of(allowedOrigins));
+        configuration.setAllowCredentials(true);
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

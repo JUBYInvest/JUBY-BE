@@ -11,7 +11,6 @@ import juby.invest.domain.member.enums.Role;
 import juby.invest.domain.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -66,7 +65,7 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
             }
 
             // 기존 회원이 아니면 DB에 추가
-            Member member = memberRepository.findBySocialTypeAndProviderId(oAuth2Response.getProvider(), oAuth2Response.getProviderId())
+            Member member = memberRepository.findBySocialTypeAndProviderIdAndDeletedAtIsNull(oAuth2Response.getProvider(), oAuth2Response.getProviderId())
                     .orElseGet(() -> memberRepository.save(Member.builder()
                             .email(oAuth2Response.getEmail())
                             .name(oAuth2Response.getName())
@@ -78,7 +77,7 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
 
             log.info("소셜 로그인 성공, 이름={}, 이메일={}", member.getName(), member.getEmail());
 
-            return new CustomOAuth2User(member.getId(), member.getRole(), member.getName());
+            return new CustomOAuth2User(member.getId(), member.getRole(), member.getName(), null, null);
         } catch (OAuth2AuthenticationException e){
             throw e;
         } catch (Exception e){

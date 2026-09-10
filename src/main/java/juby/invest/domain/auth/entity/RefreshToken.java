@@ -1,7 +1,6 @@
 package juby.invest.domain.auth.entity;
 
 import jakarta.persistence.*;
-import juby.invest.domain.kis.token.converter.TokenConverter;
 import juby.invest.domain.member.entity.Member;
 import lombok.AccessLevel;
 import lombok.Builder;
