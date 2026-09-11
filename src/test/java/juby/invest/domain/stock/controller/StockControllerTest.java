@@ -1,11 +1,14 @@
 package juby.invest.domain.stock.controller;
 
+import juby.invest.domain.member.enums.Role;
 import juby.invest.domain.stock.dto.StockListDto;
 import juby.invest.domain.stock.enums.Order;
 import juby.invest.domain.stock.enums.Period;
 import juby.invest.domain.stock.enums.StockSortBy;
 import juby.invest.domain.stock.service.StockService;
 import juby.invest.global.apiPayload.handler.GeneralExceptionAdvice;
+import juby.invest.global.security.entity.CustomOAuth2User;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,6 +20,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -28,6 +34,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -42,14 +49,27 @@ class StockControllerTest {
     private StockService stockService;
 
     private MockMvc mockMvc;
+    private CustomOAuth2User user;
 
     @BeforeEach
     void setUp() {
+        user = new CustomOAuth2User(1L, Role.USER, "테스터");
+
         // 전체 컨텍스트와 시큐리티 없이 컨트롤러 + 예외 어드바이스만 올린다.
-        // ArgumentResolver와 GeneralExceptionAdvice는 실제 구현이 그대로 동작한다.
+        // AuthenticationPrincipalArgumentResolver를 직접 등록해 @AuthenticationPrincipal이
+        // SecurityContext의 인증 정보를 실제로 resolve하도록 한다.
         mockMvc = MockMvcBuilders.standaloneSetup(new StockController(stockService))
                 .setControllerAdvice(new GeneralExceptionAdvice())
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .build();
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities()));
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     private StockListDto.StockListRes emptyResult() {
@@ -69,7 +89,7 @@ class StockControllerTest {
                 "TRADING_VALUE, ASC", "TRADING_VALUE, DESC",
         })
         void acceptsEverySortCombination(String sortBy, String order) throws Exception {
-            given(stockService.getStockList(any())).willReturn(emptyResult());
+            given(stockService.getStockList(eq(user), any())).willReturn(emptyResult());
 
             mockMvc.perform(get("/api/stocks")
                             .param("sortBy", sortBy)
@@ -82,7 +102,7 @@ class StockControllerTest {
         @Test
         @DisplayName("파라미터를 생략해도 200을 반환한다")
         void acceptsNoParameters() throws Exception {
-            given(stockService.getStockList(any())).willReturn(emptyResult());
+            given(stockService.getStockList(eq(user), any())).willReturn(emptyResult());
 
             mockMvc.perform(get("/api/stocks"))
                     .andExpect(status().isOk())
@@ -93,7 +113,7 @@ class StockControllerTest {
         @ParameterizedTest(name = "sortBy=[{0}]")
         @ValueSource(strings = {"", " "})
         void treatsBlankSortByAsUnspecified(String sortBy) throws Exception {
-            given(stockService.getStockList(any())).willReturn(emptyResult());
+            given(stockService.getStockList(eq(user), any())).willReturn(emptyResult());
 
             mockMvc.perform(get("/api/stocks").param("sortBy", sortBy))
                     .andExpect(status().isOk());
@@ -103,7 +123,7 @@ class StockControllerTest {
             // 따라서 StockListReq의 compact 생성자가 기본값을 채운다.
             ArgumentCaptor<StockListDto.StockListReq> captor =
                     ArgumentCaptor.forClass(StockListDto.StockListReq.class);
-            then(stockService).should().getStockList(captor.capture());
+            then(stockService).should().getStockList(eq(user), captor.capture());
 
             assertThat(captor.getValue().sortBy()).isEqualTo(StockSortBy.STOCK_NAME);
             assertThat(captor.getValue().order()).isEqualTo(Order.ASC);

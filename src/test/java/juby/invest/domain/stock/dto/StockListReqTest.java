@@ -26,9 +26,9 @@ class StockListReqTest {
      *   거래대금 ASC : 카카오, 현대차, 삼성전자
      */
     private static final List<StockListDto.StockList> STOCKS = List.of(
-            StockListDto.StockList.of("005930", "삼성전자",  70_800,  0.71, 2_500_000_000_000L),
-            StockListDto.StockList.of("035720", "카카오",    41_500,  3.20,   800_000_000_000L),
-            StockListDto.StockList.of("005380", "현대차",   250_000, -1.43, 1_200_000_000_000L));
+            StockListDto.StockList.of("005930", "삼성전자",  70_800,  0.71, 2_500_000_000_000L, false),
+            StockListDto.StockList.of("035720", "카카오",    41_500,  3.20,   800_000_000_000L, false),
+            StockListDto.StockList.of("005380", "현대차",   250_000, -1.43, 1_200_000_000_000L, false));
 
     private List<String> sortedNames(StockSortBy sortBy, Order order) {
         return STOCKS.stream()
@@ -93,8 +93,8 @@ class StockListReqTest {
 
         // 종가가 같고 종목코드만 다른 두 종목
         private final List<StockListDto.StockList> tied = List.of(
-                StockListDto.StockList.of("000660", "가나전자", 50_000, 1.0, 100L),
-                StockListDto.StockList.of("000030", "나다전자", 50_000, 1.0, 100L));
+                StockListDto.StockList.of("000660", "가나전자", 50_000, 1.0, 100L, false),
+                StockListDto.StockList.of("000030", "나다전자", 50_000, 1.0, 100L, false));
 
         private List<String> sortedCodes(Order order) {
             return tied.stream()
@@ -121,9 +121,9 @@ class StockListReqTest {
     @DisplayName("종목명 정렬은 유니코드 순서라 영문 종목명이 한글보다 앞에 온다")
     void latinNamesPrecedeHangul() {
         List<StockListDto.StockList> stocks = List.of(
-                StockListDto.StockList.of("005930", "삼성전자",   70_800,  0.71, 1L),
-                StockListDto.StockList.of("000660", "SK하이닉스", 178_000, 1.20, 1L),
-                StockListDto.StockList.of("005380", "현대차",    250_000, -1.43, 1L));
+                StockListDto.StockList.of("005930", "삼성전자",   70_800,  0.71, 1L, false),
+                StockListDto.StockList.of("000660", "SK하이닉스", 178_000, 1.20, 1L, false),
+                StockListDto.StockList.of("005380", "현대차",    250_000, -1.43, 1L, false));
 
         List<String> sorted = stocks.stream()
                 .sorted(new StockListDto.StockListReq(StockSortBy.STOCK_NAME, Order.ASC).toComparator())

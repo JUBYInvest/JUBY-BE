@@ -2,6 +2,7 @@ package juby.invest.domain.stock.service;
 
 import juby.invest.domain.kis.market.dto.CurrentPriceRes;
 import juby.invest.domain.kis.market.service.MarketService;
+import juby.invest.domain.member.repository.LikeStockRepository;
 import juby.invest.domain.news.enums.NewsSortType;
 import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.pinecone.service.PineconeService;
@@ -11,13 +12,12 @@ import juby.invest.domain.stock.dto.StockListDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
-import juby.invest.domain.stock.enums.Order;
 import juby.invest.domain.stock.enums.Period;
-import juby.invest.domain.stock.enums.StockSortBy;
 import juby.invest.domain.stock.exception.StockException;
 import juby.invest.domain.stock.exception.code.StockErrorCode;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.stock.repository.StockRepository;
+import juby.invest.global.security.entity.CustomOAuth2User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +26,10 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+
+import static juby.invest.domain.stock.converter.StockConverter.calculateFluctuation;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,7 @@ public class StockService {
 
     private final StockRepository stockRepository;
     private final DailyPriceRepository dailyPriceRepository;
+    private final LikeStockRepository likeStockRepository;
     private final MarketService marketService;
     private final PineconeService pineconeService;
 
@@ -53,7 +57,7 @@ public class StockService {
      * @return StockListRes 목록 (종목코드, 종목명, 종가, 등락률, 거래대금)
      */
     @Transactional(readOnly = true)
-    public StockListDto.StockListRes getStockList(StockListDto.StockListReq stockListReq) {
+    public StockListDto.StockListRes getStockList(CustomOAuth2User user, StockListDto.StockListReq stockListReq) {
 
         // 가장 최신 날짜와 기준일의 전 날짜
         LocalDate baseDate = dailyPriceRepository.findMaxDate();
@@ -73,13 +77,19 @@ public class StockService {
                           DailyPrice::getClosePrice,
                           (existing, duplicate) -> existing));
 
+        // 회원의 관심 여부
+        Set<String> likedStockCodes = (user == null)
+                ? Set.of()
+                : likeStockRepository.findStockCodesByMemberId(user.getId());
+
         List<StockListDto.StockList> stockList = dailyPrices.stream()
                 .map(dp -> StockListDto.StockList.of(
                         dp.getStock().getStockCode(),
                         dp.getStock().getStockName(),
                         dp.getClosePrice(),
                         calculateFluctuation(dp.getClosePrice(), prevClosePrices.get(dp.getStock().getStockCode())),
-                        dp.getTradingValue() == null ? 0L : dp.getTradingValue()))
+                        dp.getTradingValue() == null ? 0L : dp.getTradingValue(),
+                        likedStockCodes.contains(dp.getStock().getStockCode())))
                 .sorted(stockListReq.toComparator())
                 .toList();
 
@@ -151,17 +161,6 @@ public class StockService {
                 .toList();
 
         return StockNewsDto.StockNewsRes.of(stockCode, stock.getStockName(), sort, newsList, page, hits.size());
-    }
-
-    // 가장 최근 날짜와 날짜의 전일의 변동률을 계산한다.
-    double calculateFluctuation(Integer closePrice, Integer prevClosePrice) {
-
-        if (prevClosePrice == null || prevClosePrice == 0){
-            return 0.0;
-        }
-
-        // 변동률은 소수 둘째 자리까지
-        return Math.round((double) (closePrice - prevClosePrice) / prevClosePrice * 10000) / 100.0;
     }
 
     // 오늘날짜를 기준으로 역산하여 시작일을 계산한다.
