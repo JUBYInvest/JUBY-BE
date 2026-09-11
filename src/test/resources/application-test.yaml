@@ -1,0 +1,29 @@
+# 리포지토리 테스트 전용 설정.
+# application.yaml은 DB 주소와 각종 키를 모두 환경변수(${...})로 참조하므로,
+# .env나 로컬 MySQL이 없는 환경(CI 등)에서는 컨텍스트가 아예 못 뜬다.
+# 프로필별 설정이 기본 설정을 덮어쓰는 규칙을 이용해 여기서 고정값으로 대체한다.
+spring:
+  datasource:
+    url: jdbc:h2:mem:invest;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+# JwtUtil을 스프링 빈으로 올리는 테스트가 있을 경우를 대비한 값.
+# HS256 키는 최소 32바이트여야 하므로 길이를 맞춰 둔다.
+jwt:
+  secret: juby-invest-test-secret-key-must-be-at-least-32-bytes-long
+  access-token-validity: 1800000
+  refresh-token-validity: 1209600000
+
+app:
+  cookie:
+    secure: false
+    same-site: Lax

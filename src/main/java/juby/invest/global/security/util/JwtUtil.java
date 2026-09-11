@@ -40,10 +40,9 @@ public class JwtUtil {
 
         Date now = new Date();
         Date expiration = new Date(now.getTime() + accessTokenValidity);
-        String jti = UUID.randomUUID().toString(); // JWT ID
 
         return Jwts.builder()
-                .id(jti)
+                .id(UUID.randomUUID().toString()) // JWT id
                 .subject(String.valueOf(userId))
                 .claim("typ", "access")
                 .claim("role", role)
@@ -59,7 +58,11 @@ public class JwtUtil {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + refreshTokenValidity);
 
+        // jti가 없으면 같은 회원의 RT는 sub/typ/iat/exp만으로 이루어진다.
+        // iat/exp는 초 단위라 1초 안에 재발급하면 예전 RT와 완전히 같은 문자열이 나와,
+        // 로테이션을 해도 예전 RT가 그대로 유효해진다(재사용 감지 불가).
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(String.valueOf(userId))
                 .claim("typ", "refresh")
                 .issuedAt(now)

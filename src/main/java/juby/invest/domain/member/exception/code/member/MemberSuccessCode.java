@@ -22,7 +22,7 @@ public enum MemberSuccessCode implements BaseSuccessCode {
               "MEMBER200_4",
             "투자유형이 성공적으로 변경되었습니다."),
     INFO_CHANGE_OK(HttpStatus.OK,
-            "MEMBER200_4",
+            "MEMBER200_5",
             "사용자 정보가 성공적으로 변경되었습니다.")
     ;
 
