@@ -1,7 +1,9 @@
-# 리포지토리 테스트 전용 설정.
+# 테스트 전용 설정.
 # application.yaml은 DB 주소와 각종 키를 모두 환경변수(${...})로 참조하므로,
 # .env나 로컬 MySQL이 없는 환경(CI 등)에서는 컨텍스트가 아예 못 뜬다.
 # 프로필별 설정이 기본 설정을 덮어쓰는 규칙을 이용해 여기서 고정값으로 대체한다.
+#
+# 여기 적힌 값은 전부 가짜다. 외부 서버에 실제로 붙는 테스트는 없어야 한다.
 spring:
   datasource:
     url: jdbc:h2:mem:invest;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
@@ -16,14 +18,62 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
 
-# JwtUtil을 스프링 빈으로 올리는 테스트가 있을 경우를 대비한 값.
-# HS256 키는 최소 32바이트여야 하므로 길이를 맞춰 둔다.
+  # ClientRegistration은 client-id/secret/redirect-uri가 비어 있으면 조립 단계에서 실패한다.
+  # 실제 인가 요청을 보내지 않으므로 값 자체는 의미 없다.
+  security:
+    oauth2:
+      client:
+        registration:
+          naver:
+            client-id: test-naver-client-id
+            client-secret: test-naver-client-secret
+            redirect-uri: http://localhost:8080/login/oauth2/code/naver
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+            redirect-uri: http://localhost:8080/login/oauth2/code/google
+          kakao:
+            client-id: test-kakao-client-id
+            client-secret: test-kakao-client-secret
+            redirect-uri: http://localhost:8080/login/oauth2/code/kakao
+
+  ai:
+    openai:
+      api-key: test-openai-api-key
+
+kis:
+  mock:
+    app-key: test-kis-mock-app-key
+    app-secret: test-kis-mock-app-secret
+  real:
+    app-key: test-kis-real-app-key
+    app-secret: test-kis-real-app-secret
+
+naver:
+  news:
+    app-key: test-naver-news-app-key
+    app-secret: test-naver-news-app-secret
+
+# HS256 키는 최소 32바이트여야 한다.
 jwt:
   secret: juby-invest-test-secret-key-must-be-at-least-32-bytes-long
   access-token-validity: 1800000
   refresh-token-validity: 1209600000
 
+# AES-128이므로 정확히 16바이트.
+aes:
+  secret: test-aes-16byte!
+
+pinecone:
+  app-key: test-pinecone-app-key
+
+# app.* 는 local/dev 프로필에만 있어서 test 프로필에서는 따로 채워야 한다.
 app:
+  oauth2:
+    redirect-uri: http://localhost:5173/oauth2/callback
+    failure-redirect-uri: http://localhost:5173/oauth2/error
+  cors:
+    allowed-origins: http://localhost:5173
   cookie:
     secure: false
     same-site: Lax
