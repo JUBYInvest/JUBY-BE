@@ -40,7 +40,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // SecurityContext에서 인증 객체의 principal 가져오기
         CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
 
-        Member member = memberRepository.findById(oAuth2User.getId())
+        Member member = memberRepository.findActiveById(oAuth2User.getId())
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
 
         // userId, role, name을 활용하여 JWT 생성
