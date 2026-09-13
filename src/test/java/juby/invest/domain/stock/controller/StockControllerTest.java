@@ -53,7 +53,7 @@ class StockControllerTest {
 
     @BeforeEach
     void setUp() {
-        user = new CustomOAuth2User(1L, Role.USER, "테스터");
+        user = new CustomOAuth2User(1L, Role.USER, "테스터", null, null);
 
         // 전체 컨텍스트와 시큐리티 없이 컨트롤러 + 예외 어드바이스만 올린다.
         // AuthenticationPrincipalArgumentResolver를 직접 등록해 @AuthenticationPrincipal이
