@@ -45,7 +45,7 @@ public class OpenAiService {
     public OpenAiResDto.AskResult askQuestion(Long memberId, String question, String stockName) throws ApiException {
 
         // 로그인 사용자의 성향 테스트 결과로 백테스트 investType(1~5) 확보
-        Member member = memberRepository.findById(memberId)
+        Member member = memberRepository.findActiveById(memberId)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
         Personality personality = member.getPersonality();
         if (personality == null) {

@@ -78,7 +78,7 @@ public class PersonalityTestService {
     public TestResponseDto.TestResultRes calculatePersonality(Long userId, TestResponseDto.TestResultReq dto) {
 
         // 회원을 못찾을 경우 예외
-        Member member = memberRepository.findById(userId)
+        Member member = memberRepository.findActiveById(userId)
                 .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
 
         // 응답 항목 전체를 더해 값을 매긴다.
@@ -87,6 +87,7 @@ public class PersonalityTestService {
         // DB에 저장
         Personality findPersonality = personalityRepository.findByInvestPersonality(personality);
         member.updatePersonality(findPersonality);
+        member.completeOnboard();
 
         return TestResponseDto.TestResultRes.builder()
                 .memberId(userId)

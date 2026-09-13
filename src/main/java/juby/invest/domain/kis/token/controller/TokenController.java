@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "인증 API", description = "KIS API 통신을 위한 토큰 발급 및 관리")
+@Tag(name = "토큰 API", description = "KIS API 통신을 위한 토큰 발급 및 관리 (매니저 역할 필요)")
 @RestController
 @Slf4j
 @RequestMapping("/api/token")

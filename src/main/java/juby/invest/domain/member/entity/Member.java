@@ -2,12 +2,12 @@ package juby.invest.domain.member.entity;
 
 import jakarta.persistence.*;
 import juby.invest.domain.member.dto.ChangeMemberInfo;
-import juby.invest.domain.member.enums.InvestPersonality;
 import juby.invest.domain.member.enums.Role;
 import juby.invest.domain.member.enums.SocialType;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Builder
@@ -46,6 +46,29 @@ public class Member {
     @Column(name = "provider_id")
     private String providerId;
 
+    @Column(name = "is_onboarded", nullable = false)
+    @Builder.Default
+    private boolean isOnboarded = false;
+    
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    // 온보딩을 참으로 변경한다.
+    public void completeOnboard(){
+        this.isOnboarded = true;
+    }
+
+    // 탈퇴 처리한다. 행은 남기고 탈퇴 시각만 기록한다.
+    public void withdraw(){
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    // 탈퇴한 회원인지 확인한다.
+    public boolean isDeleted(){
+        return this.deletedAt != null;
+    }
+
+    // 회원의 투자 성향을 업데이트 한다.
     public void updatePersonality(Personality personality){
         this.personality = personality;
     }

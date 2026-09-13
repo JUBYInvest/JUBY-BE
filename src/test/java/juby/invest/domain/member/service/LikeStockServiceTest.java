@@ -47,7 +47,7 @@ class LikeStockServiceTest {
     @BeforeEach
     void setUp(){
         likeStockService = new LikeStockService(memberRepository, stockRepository, dailyPriceRepository, likeStockRepository);
-        user = new CustomOAuth2User(1L, Role.USER, "테스터");
+        user = new CustomOAuth2User(1L, Role.USER, "테스터", null, null);
 
         member = Member.builder().id(1L).build();
     }

@@ -16,6 +16,21 @@ spring:
           kakao:
             redirect-uri: http://3.35.191.42:8080/login/oauth2/code/kakao
 
+app:
+  oauth2:
+    redirect-uri: ${FRONTEND_URL:http://localhost:5173}/oauth2/callback
+    failure-redirect-uri: ${FRONTEND_URL:http://localhost:5173}/oauth2/error
+
+  # 프론트 origin 화이트리스트. allowCredentials와 함께 쓰므로 와일드카드 불가.
+  cors:
+    allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+
+  # RT 쿠키 속성. 프론트와 백엔드가 다른 사이트이므로 HTTPS 전환 후
+  # COOKIE_SECURE=true, COOKIE_SAME_SITE=None으로 바꿔야 쿠키가 전달된다.
+  cookie:
+    secure: ${COOKIE_SECURE:false}
+    same-site: ${COOKIE_SAME_SITE:Lax}
+
 logging:
   level:
     org.springframework.security: INFO

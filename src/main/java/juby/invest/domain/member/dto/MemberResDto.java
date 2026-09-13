@@ -16,6 +16,7 @@ public class MemberResDto {
         private String email;
         private LocalDate birth;
         private SocialType socialType;
+        private boolean isOnboarded;
     }
 
     @Getter
