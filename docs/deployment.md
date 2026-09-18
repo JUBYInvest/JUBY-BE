@@ -63,26 +63,91 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plu
 
 ## 3. MySQL 컨테이너 기동
 
-레포의 `deploy/` 디렉터리를 EC2로 옮긴다.
+명령을 실행하는 위치가 두 곳이다. 섞으면 "파일이 없다"는 에러가 난다.
+
+- **[로컬]** 내 PC, 레포 루트
+- **[EC2]** ssh로 접속한 상태
+
+### 3-1. [EC2] 디렉터리 생성
 
 ```bash
-mkdir -p ~/db
-# 로컬에서:
-#   scp -i <key.pem> deploy/docker-compose.yml deploy/low-mem.cnf \
-#       deploy/.env.example deploy/backup-mysql.sh <user>@<host>:~/db/
-
-cd ~/db
-cp .env.example .env
-chmod 600 .env
-vi .env            # MYSQL_* 값을 실제 비밀번호로 채운다
-chmod 644 low-mem.cnf   # MySQL은 world-writable 설정 파일을 무시한다
-
-sudo docker compose up -d
-sudo docker compose ps        # healthy 확인 (start_period 40s)
-sudo docker compose logs -f mysql
+mkdir -p ~/db     # MySQL 운영 파일(compose·설정·백업·.env)이 사는 곳
 ```
 
-`juby-net` 네트워크가 이때 생성된다. CI가 앱 컨테이너를 여기에 붙인다.
+### 3-2. [로컬] 파일 전송
+
+```bash
+scp -i <key.pem> deploy/docker-compose.yml deploy/low-mem.cnf deploy/backup-mysql.sh \
+    <user>@<ELASTIC_IP>:~/db/
+```
+
+`.env.example`은 전송하지 않는다. 점으로 시작하는 파일은 셸 글로브(`deploy/*`)에
+매칭되지 않아 조용히 누락되고, 어차피 실제 비밀번호를 담아야 하므로 EC2에서
+직접 만드는 편이 낫다.
+
+접속이 안 되면 scp 대신 ssh로 먼저 키를 검증할 것. `Identity file ... not
+accessible` 다음 줄의 `Permission denied (publickey)`는 별개 원인이 아니라
+키를 못 찾아 생긴 결과다. 키 경로에 공백이 있으면 따옴표로 감싼다.
+
+### 3-3. [EC2] `.env` 작성
+
+compose는 **자기와 같은 디렉터리의 `.env`를 자동으로 읽어**
+`docker-compose.yml`의 `${MYSQL_*}` 자리를 채운다. 항목 목록은
+`deploy/.env.example` 참고.
+
+```bash
+cd ~/db
+cat > .env <<'EOF'
+MYSQL_ROOT_PASSWORD=루트비밀번호
+MYSQL_DATABASE=juby
+MYSQL_USER=juby
+MYSQL_PASSWORD=앱비밀번호
+EOF
+chmod 600 .env
+cat .env      # 4줄이 제대로 들어갔는지 확인
+```
+
+비밀번호에 `$`를 넣지 말 것. compose가 변수 참조로 해석한다.
+
+### 3-4. [EC2] 설정 파일 권한
+
+```bash
+chmod 644 low-mem.cnf
+```
+
+MySQL은 world-writable 설정 파일을 **조용히 무시한다.** 기동은 정상이지만
+튜닝만 적용되지 않아 원인을 찾기 어렵다.
+
+### 3-5. [EC2] 기동
+
+```bash
+cd ~/db      # compose는 현재 디렉터리의 docker-compose.yml을 읽는다
+sudo docker compose up -d
+```
+
+이 한 줄이 하는 일:
+
+1. `mysql:8.0` 이미지 pull (최초 1회)
+2. **`juby-net` 네트워크 생성** — CI가 앱 컨테이너를 여기에 붙인다
+3. **`juby_mysql-data` 볼륨 생성** — 실제 데이터가 사는 곳
+4. 최초 기동이면 DB를 초기화하고 `.env` 값으로 DB와 계정을 만든다 (30~60초)
+
+### 3-6. [EC2] 검증
+
+```bash
+sudo docker compose ps                        # Up (healthy)가 될 때까지 대기
+sudo docker compose logs mysql | tail -20     # "ready for connections" 확인
+sudo docker network ls | grep juby-net
+sudo docker volume ls  | grep mysql-data
+sudo docker compose exec mysql mysql -u juby -p -e "SHOW DATABASES;"
+```
+
+마지막 명령에서 `juby` 데이터베이스가 보이면 3단계 완료다.
+
+> **함정**: `.env`의 `MYSQL_*` 값은 볼륨이 비어 있는 **최초 초기화 때만** 적용된다.
+> 비밀번호를 틀린 채 `up -d` 한 뒤 `.env`를 고치고 다시 올려도 바뀌지 않는다.
+> 실제 데이터가 없는 이 단계에서만 `sudo docker compose down -v`로 볼륨을 지우고
+> 다시 하면 된다. (`-v`는 데이터 삭제다. 운영 중에는 절대 금지)
 
 ## 4. GitHub Secrets 갱신
 
