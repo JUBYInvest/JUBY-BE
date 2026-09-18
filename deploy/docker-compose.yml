@@ -1,0 +1,52 @@
+# EC2 내부에서 MySQL을 상시 운영하기 위한 compose 파일.
+#
+# 애플리케이션 컨테이너는 CI(.github/workflows/dev-deploy.yml)가 배포마다
+# 교체하므로 의도적으로 이 파일에 포함하지 않았다. 같은 compose로 묶으면
+# 배포 과정의 `docker rm -f`가 DB 컨테이너까지 건드릴 여지가 생긴다.
+#
+# 사용법은 docs/deployment.md 참고.
+
+# 프로젝트 이름을 고정한다. 기본값은 디렉터리명이라 파일을 다른 경로로 옮기면
+# 볼륨 이름(`<project>_mysql-data`)이 바뀌어 기존 데이터를 못 찾는다.
+name: juby
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      # named volume이므로 컨테이너를 지워도 데이터는 남는다.
+      - mysql-data:/var/lib/mysql
+      - ./low-mem.cnf:/etc/mysql/conf.d/low-mem.cnf:ro
+    networks:
+      - juby-net
+    # ports를 노출하지 않는 것은 의도된 설정이다.
+    # 3306을 호스트에 바인딩하면 EC2 퍼블릭 IP로 MySQL이 인터넷에 열린다.
+    # 외부에서 DB를 봐야 할 때는 SSH 터널을 사용할 것:
+    #   ssh -L 3306:127.0.0.1:3306 -i <key.pem> <user>@<ec2-host>
+    # (단, 터널을 쓰려면 아래 ports 주석을 127.0.0.1 바인딩으로만 열어야 한다)
+    # ports:
+    #   - "127.0.0.1:3306:3306"
+    healthcheck:
+      # CMD-SHELL이어야 컨테이너 안에서 $MYSQL_ROOT_PASSWORD가 확장된다.
+      # ($$는 compose가 변수를 치환하지 않도록 이스케이프한 것)
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+volumes:
+  mysql-data:
+
+networks:
+  juby-net:
+    # 애플리케이션 컨테이너가 `--network juby-net`으로 붙으므로 이름을 고정한다.
+    name: juby-net

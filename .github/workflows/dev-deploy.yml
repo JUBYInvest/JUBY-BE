@@ -61,8 +61,13 @@ jobs:
             
             sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.PROJECT_NAME }}:latest
             
+            # MySQL 컨테이너와 같은 네트워크에 붙여 호스트명 `mysql`로 접근한다.
+            # (네트워크는 deploy/docker-compose.yml이 생성한다)
             sudo docker run -p ${{ secrets.PORT }}:${{ secrets.PORT }} \
             --name ${{ secrets.PROJECT_NAME }} \
+            --network juby-net \
+            --restart unless-stopped \
             --env-file .env \
             -e SPRING_PROFILES_ACTIVE=dev \
+            -e JAVA_TOOL_OPTIONS="-Xms256m -Xmx384m -Xss512k -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC" \
             -d ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.PROJECT_NAME }}:latest
