@@ -1,0 +1,29 @@
+# t3.micro(1GiB)에서 MySQL 8.0의 메모리 사용량을 줄이는 설정.
+# 기본 설정 대비 RSS 기준 약 450MB -> 280MB 수준.
+#
+# 주의: MySQL은 world-writable(o+w) 설정 파일을 무시한다. chmod 644 유지.
+
+[mysqld]
+# InnoDB 버퍼 풀. 기본 128M이지만 명시해 두어 버전에 따라 커지는 것을 막는다.
+innodb_buffer_pool_size = 128M
+innodb_log_buffer_size  = 8M
+
+# performance_schema만 꺼도 약 150MB를 절약할 수 있다.
+# 쿼리 프로파일링이 필요해지면 일시적으로 ON으로 바꿀 것.
+performance_schema      = OFF
+
+table_open_cache        = 64
+table_definition_cache  = 256
+
+# 애플리케이션 Hikari 풀(5) + 백업/점검용 여유.
+max_connections         = 30
+
+# 커넥션당 할당되는 버퍼들. 커넥션 수가 늘어날 때 메모리를 지배한다.
+sort_buffer_size        = 256K
+read_buffer_size        = 128K
+read_rnd_buffer_size    = 256K
+join_buffer_size        = 256K
+
+character-set-server    = utf8mb4
+collation-server        = utf8mb4_0900_ai_ci
+default-time-zone       = '+09:00'
