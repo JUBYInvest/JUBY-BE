@@ -180,13 +180,56 @@ BACKEND_URL=http://<ELASTIC_IP>:8080
 RDS의 자동 백업·PITR을 포기했으므로 이게 유일한 복구 수단이다. 나중으로
 미루지 말 것.
 
+### 6-1. 호스트 시간대를 KST로
+
+**EC2 기본 시간대는 UTC다.** cron은 호스트 시간대로 돌기 때문에 이 상태에서
+`0 4 * * *`는 04:00 KST가 아니라 **13:00 KST**에 실행된다. 앱 컨테이너
+(`TZ=Asia/Seoul`)·MySQL과 시간 해석을 통일해 두는 편이 헷갈리지 않는다.
+
+```bash
+sudo timedatectl set-timezone Asia/Seoul
+sudo systemctl restart cron     # 변경된 TZ를 cron에 반영
+timedatectl | head -2
+```
+
+### 6-2. 수동 실행으로 검증
+
 ```bash
 chmod +x ~/db/backup-mysql.sh
-~/db/backup-mysql.sh          # 먼저 수동 실행해 성공을 확인
+~/db/backup-mysql.sh
+```
 
-crontab -e
-# 매일 04:00 (KST)
-0 4 * * * /home/ubuntu/db/backup-mysql.sh >> /home/ubuntu/db/backup.log 2>&1
+`OK: /home/ubuntu/db/backups/juby-....sql.gz` 가 출력되면 정상이다. 앱을 아직
+배포하지 않았다면 테이블이 0개인 덤프가 나오는데, 스키마가 없는 것뿐이라
+문제가 아니다 (`ddl-auto: update`가 앱 최초 기동 때 테이블을 만든다).
+
+스크립트는 `docker` 소켓에 접근할 수 있으면 그대로, 아니면 `sudo`를 붙여
+실행한다. EC2 기본 사용자 `ubuntu`는 docker 그룹에 속하지 않으므로 후자가 된다.
+cron에는 TTY가 없으니 sudo가 NOPASSWD여야 한다 (Ubuntu AMI 기본값).
+
+### 6-3. cron 등록
+
+`crontab -e`로 직접 편집해도 되지만, 아래처럼 하면 재실행해도 중복 등록되지
+않는다.
+
+```bash
+( crontab -l 2>/dev/null | grep -v 'backup-mysql.sh' || true
+  echo '# JUBY MySQL 일일 백업 - 매일 04:00 KST (호스트 TZ = Asia/Seoul)'
+  echo '0 4 * * * /home/ubuntu/db/backup-mysql.sh >> /home/ubuntu/db/backup.log 2>&1'
+) | crontab -
+
+crontab -l      # 등록 확인
+```
+
+### 6-4. cron 환경에서 동작하는지 확인
+
+cron은 PATH가 `/usr/bin:/bin`뿐이고 TTY도 없어서, 손으로 실행할 때는 되던
+스크립트가 cron에서만 실패하는 일이 흔하다. 하루 기다리지 말고 지금 확인한다.
+
+```bash
+env -i PATH=/usr/bin:/bin HOME=/home/ubuntu SHELL=/bin/sh \
+  /bin/sh -c '/home/ubuntu/db/backup-mysql.sh >> /home/ubuntu/db/backup.log 2>&1'
+cat ~/db/backup.log
 ```
 
 복구:

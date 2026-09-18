@@ -22,8 +22,20 @@ set +a
 mkdir -p "$BACKUP_DIR"
 TARGET="$BACKUP_DIR/${MYSQL_DATABASE}-$(date +%F-%H%M).sql.gz"
 
+# 덤프가 중간에 실패하면 잘린 파일이 정상 백업처럼 남는다. 반드시 지운다.
+trap '[ $? -eq 0 ] || rm -f "$TARGET"' EXIT
+
+# EC2 기본 사용자(ubuntu)는 docker 그룹에 속하지 않아 소켓에 접근할 수 없다.
+# 접근 가능하면 그대로, 아니면 sudo를 붙인다. (cron은 TTY가 없으므로
+# sudo는 NOPASSWD로 설정돼 있어야 한다)
+if docker ps -q >/dev/null 2>&1; then
+  DOCKER="docker"
+else
+  DOCKER="sudo -n docker"
+fi
+
 # --single-transaction: InnoDB를 락 없이 일관된 시점으로 덤프한다.
-docker exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "$CONTAINER" \
+$DOCKER exec -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" "$CONTAINER" \
   mysqldump -u root \
     --single-transaction \
     --routines \
