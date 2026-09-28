@@ -23,12 +23,16 @@ public class CustomEntryPoint implements AuthenticationEntryPoint {
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
 
         ObjectMapper objectMapper = new ObjectMapper();
-        BaseErrorCode errorCode = GeneralErrorCode.UNAUTHORIZED;
+
+        Object exception = request.getAttribute("exception");
+        BaseErrorCode errorCode = (exception instanceof BaseErrorCode ec)
+                ? ec
+                : GeneralErrorCode.UNAUTHORIZED;
 
         response.setContentType("application/json;charset=UTF-8");
         response.setStatus(errorCode.getStatus().value());
 
-        ApiResponse<Object> errorResponse = ApiResponse.onFailure(errorCode, null);
+        ApiResponse<Object> errorResponse = ApiResponse.onFailure(errorCode, errorCode.getMessage());
 
         // A(무엇을)를 JSON으로 바꿔서, B(어디로)라는 통로에 바로 쏴라.
         // errorResponse 객체를 JSON으로 번역함과 동시에, 중간에 메모리를 낭비하지 않고

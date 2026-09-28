@@ -11,7 +11,10 @@ import juby.invest.domain.member.service.MemberService;
 import juby.invest.global.apiPayload.ApiResponse;
 import juby.invest.global.apiPayload.code.BaseSuccessCode;
 import juby.invest.global.security.entity.CustomOAuth2User;
+import juby.invest.global.security.util.CookieUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 public class MemberController {
 
     private final MemberService memberService;
+    private final CookieUtil cookieUtil;
 
     @Operation(summary = "내 정보 조회", description = "소셜 로그인으로 받은 이름, 이메일, 생일 정보를 반환한다.")
     @GetMapping("/me")
@@ -63,12 +67,15 @@ public class MemberController {
         return ApiResponse.onSuccess(successCode, memberService.changePersonality(principal, dto));
     }
 
-    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 회원을 삭제한다.")
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인된 회원을 탈퇴 처리하고 AT/RT를 무효화한다.")
     @DeleteMapping("/me")
-    public ApiResponse<Void> deleteMember(
+    public ResponseEntity<ApiResponse<Void>> deleteMember(
             @AuthenticationPrincipal CustomOAuth2User customOAuth2User) {
 
-        memberService.deleteMember(customOAuth2User.getId());
-        return ApiResponse.onSuccess(MemberSuccessCode.DELETE_OK, null);
+        memberService.deleteMember(customOAuth2User);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookieUtil.deleteRTCookie())
+                .body(ApiResponse.onSuccess(MemberSuccessCode.DELETE_OK, null));
     }
 }

@@ -39,6 +39,15 @@ jobs:
       - name: DockerHub Push
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.PROJECT_NAME }}:latest
 
+      - name: Copy compose files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_KEY }}
+          source: "docker-compose.yml,low-mem.cnf"
+          target: "/home/${{ secrets.EC2_USERNAME }}/app"
+
       - name: Application Run
         uses: appleboy/ssh-action@v0.1.6
         env:
@@ -49,25 +58,19 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           envs: ENV_FILE
           script: |
-            
+            # 중간에 실패하면 중단한다
+            set -e
+
+            # scp의 target과 동일한 경로여야 compose가 파일을 찾는다
+            cd /home/${{ secrets.EC2_USERNAME }}/app
+
             # EC2 내부에서 도커 허브 로그인 (private 레포를 pull 하기위해)
             sudo docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_PASSWORD }}
-            
-            echo "$ENV_FILE" > .env
-            
-            sudo docker stop ${{ secrets.PROJECT_NAME }} || true
-            sudo docker rm -f ${{ secrets.PROJECT_NAME }} || true
-            sudo docker rmi ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.PROJECT_NAME }}:latest || true
-            
-            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.PROJECT_NAME }}:latest
-            
-            # MySQL 컨테이너와 같은 네트워크에 붙여 호스트명 `mysql`로 접근한다.
-            # (네트워크는 deploy/docker-compose.yml이 생성한다)
-            sudo docker run -p ${{ secrets.PORT }}:${{ secrets.PORT }} \
-            --name ${{ secrets.PROJECT_NAME }} \
-            --network juby-net \
-            --restart unless-stopped \
-            --env-file .env \
-            -e SPRING_PROFILES_ACTIVE=dev \
-            -e JAVA_TOOL_OPTIONS="-Xms256m -Xmx384m -Xss512k -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC" \
-            -d ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.PROJECT_NAME }}:latest
+
+            # .env파일은 소유자만 읽고 쓸 수 있게 한다.
+            printf '%s\n' "$ENV_FILE" > .env
+            chmod 600 .env
+
+            sudo docker compose pull app
+            sudo docker compose up -d app
+            sudo docker image prune -f
