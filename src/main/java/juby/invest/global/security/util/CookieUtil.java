@@ -14,25 +14,8 @@ public class CookieUtil {
     private static final String RT_COOKIE_PATH = "/api/auth";
 
     @Value("${jwt.refresh-token-validity}") private long rtValidity;
-
-    // 배포 환경(HTTP/HTTPS, 동일 사이트 여부)에 따라 달라지므로 프로퍼티로 주입받는다.
     @Value("${app.cookie.secure}") private boolean secure;
     @Value("${app.cookie.same-site}") private String sameSite;
-
-    /***
-     * 함수 기능: 브라우저가 조용히 버리는 조합을 기동 시점에 잡아낸다.
-     *          SameSite=None은 Secure를 요구하고, Secure 쿠키는 HTTPS에서만 저장된다.
-     *          잘못 설정해도 에러가 나지 않고 쿠키만 사라지므로 로그로 남긴다.
-     */
-    @PostConstruct
-    public void validate() {
-        if ("None".equalsIgnoreCase(sameSite) && !secure) {
-            log.error("SameSite=None은 Secure를 요구합니다. 브라우저가 RT 쿠키를 버립니다. app.cookie 설정을 확인하세요.");
-        }
-        if (!secure) {
-            log.warn("RT 쿠키가 Secure 없이 발급됩니다. (same-site={}) 크로스 사이트 요청에는 쿠키가 실리지 않습니다.", sameSite);
-        }
-    }
 
     /***
      * 함수 기능: RT 쿠키를 생성한다.

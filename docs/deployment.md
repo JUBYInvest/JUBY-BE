@@ -151,15 +151,33 @@ sudo docker compose exec mysql mysql -u juby -p -e "SHOW DATABASES;"
 
 ## 4. GitHub Secrets 갱신
 
-`ENV_FILE` 시크릿에서 아래 두 항목을 수정한다.
+`ENV_FILE` 시크릿에서 아래 항목을 수정한다.
 
 ```dotenv
 # 호스트명 mysql은 juby-net 내부 DNS로 해석된다. RDS 엔드포인트가 아니다.
 DB_URL=jdbc:mysql://mysql:3306/juby?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
 
-# 새 Elastic IP (또는 도메인). application-dev.yaml의 redirect-uri가 이 값을 쓴다.
-BACKEND_URL=http://<ELASTIC_IP>:8080
+# 백엔드 공개 주소. nginx가 TLS를 종료하므로 https + 도메인이다. 포트는 붙이지 않는다.
+# application-dev.yaml의 세 소셜 redirect-uri가 이 값을 쓴다.
+BACKEND_URL=https://<도메인>
+
+# 프론트 주소. 프론트 배포 전까지는 개발자 로컬 dev 서버를 그대로 쓴다.
+FRONTEND_URL=http://localhost:5173
 ```
+
+`FRONTEND_URL`은 `application-dev.yaml`에서 **두 곳**에 쓰인다. 하나만 보고 판단하지 말 것.
+
+| 쓰이는 곳 | 요구 형태 |
+|---|---|
+| `app.oauth2.redirect-uri` / `failure-redirect-uri` | 뒤에 `/oauth2/callback`이 붙는다 |
+| `app.cors.allowed-origins` | **origin 그대로** (`scheme://host[:port]`, path 없음) |
+
+> **함정**: `BACKEND_URL` / `FRONTEND_URL`은 **기본값이 없다.** `ENV_FILE`에서 빠지면
+> 플레이스홀더를 못 채워 앱이 기동 실패한다. (값이 틀린 채 뜨는 것보다 낫기 때문에 의도한 동작이다)
+
+> **함정**: CORS origin은 문자 단위 완전 일치다. `FRONTEND_URL`이 `http://localhost:5173`인 동안
+> 개발자가 `http://127.0.0.1:5173`으로 접속하면 **다른 origin**이라 API 호출이 전부 차단된다.
+> Vite는 5173이 점유되어 있으면 말없이 5174로 올라가므로 이때도 같이 깨진다.
 
 `DB_USERNAME` / `DB_PASSWORD`는 `deploy/.env`의 `MYSQL_USER` / `MYSQL_PASSWORD`와
 반드시 일치해야 한다. `EC2_HOST` 시크릿도 새 IP로 갱신한다.
@@ -168,12 +186,13 @@ BACKEND_URL=http://<ELASTIC_IP>:8080
 
 `BACKEND_URL`을 바꿨으면 세 콘솔 모두에 콜백 URL을 등록해야 로그인이 된다.
 등록값과 서버가 보내는 값이 한 글자라도 다르면 `redirect_uri_mismatch`가 난다.
+스킴(`http` → `https`)이나 포트 유무도 "한 글자 다름"에 해당한다.
 
 | 제공자 | 등록할 Callback URL |
 |---|---|
-| 네이버 | `http://<ELASTIC_IP>:8080/login/oauth2/code/naver` |
-| 구글 | `http://<ELASTIC_IP>:8080/login/oauth2/code/google` |
-| 카카오 | `http://<ELASTIC_IP>:8080/login/oauth2/code/kakao` |
+| 네이버 | `https://<도메인>/login/oauth2/code/naver` |
+| 구글 | `https://<도메인>/login/oauth2/code/google` |
+| 카카오 | `https://<도메인>/login/oauth2/code/kakao` |
 
 ## 6. 백업 cron (필수)
 
@@ -296,6 +315,20 @@ ssh -L 3306:127.0.0.1:3306 -i <key.pem> <user>@<host>
 - **MySQL 컨테이너 교체**: 데이터는 `mysql-data` named volume에 있으므로
   `docker compose down && up -d`로 안전하게 갈아탈 수 있다. 단
   `docker compose down -v`의 `-v`는 **볼륨을 지운다**. 절대 쓰지 말 것.
-- **HTTPS 전환 시**: 도메인 + nginx/ALB를 붙인 뒤 `BACKEND_URL`을 `https://...`로
-  바꾸고, 소셜 콘솔 콜백도 갱신한다. RT 쿠키를 쓰는 인증 기능이 머지된 뒤에는
-  `COOKIE_SECURE=true` / `COOKIE_SAME_SITE=None`도 함께 설정해야 한다.
+- **HTTPS 구성 (완료)**: EC2 호스트의 nginx가 443을 받아 TLS를 종료하고 앱 컨테이너의
+  8080으로 평문 전달한다. 앱은 자기가 HTTP로 서비스된다고 인식하므로, nginx에
+  `proxy_set_header X-Forwarded-Proto $scheme;`(+ `X-Forwarded-Host`)가 있어야
+  앱이 만드는 절대 URL이 `https://`로 나온다. 인증 플로우는 `BACKEND_URL` 절대값을 쓰므로
+  영향받지 않고, 증상은 Swagger UI의 서버 주소가 `http://`로 보이는 정도다.
+- **RT 쿠키 속성**: `app.cookie.secure: true` / `same-site: None`으로
+  `application-dev.yaml`에 **고정**되어 있다. env로 바꾸는 값이 아니다.
+  프론트와 백엔드가 서로 다른 site이므로 `SameSite=None`이 필수이고, `None`은 `Secure`를
+  요구하므로 HTTPS가 전제다. 둘 중 하나만 틀려도 에러 없이 쿠키만 사라진다.
+- **프론트 배포 시 할 일**:
+  1. `ENV_FILE`의 `FRONTEND_URL`을 실제 도메인으로 교체 (CORS origin으로도 쓰이므로 path 없이).
+  2. RT 쿠키는 크로스 사이트 = **서드파티 쿠키**다. Chrome 일반 모드는 통과하지만
+     시크릿 모드·Safari(ITP)·Firefox(Total Cookie Protection)에서는 차단되어
+     `POST /api/auth/reissue`가 실패할 수 있다. 설정 오류가 아니라 브라우저 정책이다.
+     프론트를 백엔드와 **같은 등록 도메인** 아래 두면(`app.example.io` / `api.example.io`)
+     같은 site가 되어 `SameSite=Lax`로 되돌릴 수 있고 이 문제가 사라진다.
+     도메인을 정할 때 함께 결정할 것.

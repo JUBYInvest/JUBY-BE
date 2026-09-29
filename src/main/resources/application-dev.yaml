@@ -4,40 +4,31 @@ spring:
       ddl-auto: update
     show-sql: false
 
-  # EC2 단일 인스턴스(1GiB)에 MySQL과 함께 올라가므로 커넥션 수를 줄인다.
   datasource:
     hikari:
-      maximum-pool-size: 5
+      maximum-pool-size: 5 # 커넥션 수 10 -> 5
       minimum-idle: 2
 
-  # 소셜 로그인
-  # redirect-uri는 각 소셜 개발자 콘솔에 등록된 값과 정확히 일치해야 한다.
-  # EC2 IP/도메인이 바뀌면 BACKEND_URL만 교체하고 콘솔에도 같이 반영할 것.
   security:
     oauth2:
       client:
         registration:
           naver:
-            redirect-uri: ${BACKEND_URL:http://localhost:8080}/login/oauth2/code/naver
+            redirect-uri: ${BACKEND_URL}/login/oauth2/code/naver
           google:
-            redirect-uri: ${BACKEND_URL:http://localhost:8080}/login/oauth2/code/google
+            redirect-uri: ${BACKEND_URL}/login/oauth2/code/google
           kakao:
-            redirect-uri: ${BACKEND_URL:http://localhost:8080}/login/oauth2/code/kakao
+            redirect-uri: ${BACKEND_URL}/login/oauth2/code/kakao
 
 app:
   oauth2:
-    redirect-uri: ${FRONTEND_URL:http://localhost:5173}/oauth2/callback
-    failure-redirect-uri: ${FRONTEND_URL:http://localhost:5173}/oauth2/error
-
-  # 프론트 origin 화이트리스트. allowCredentials와 함께 쓰므로 와일드카드 불가.
+    redirect-uri: ${FRONTEND_URL}/oauth2/callback
+    failure-redirect-uri: ${FRONTEND_URL}/oauth2/error
   cors:
-    allowed-origins: ${FRONTEND_URL:http://localhost:5173}
-
-  # RT 쿠키 속성. 프론트와 백엔드가 다른 사이트이므로 HTTPS 전환 후
-  # COOKIE_SECURE=true, COOKIE_SAME_SITE=None으로 바꿔야 쿠키가 전달된다.
+    allowed-origins: ${FRONTEND_URL}
   cookie:
-    secure: ${COOKIE_SECURE:false}
-    same-site: ${COOKIE_SAME_SITE:Lax}
+    secure: true
+    same-site: None
 
 logging:
   level:
