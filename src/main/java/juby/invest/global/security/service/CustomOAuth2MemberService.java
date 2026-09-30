@@ -94,8 +94,9 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
      * @return 생일
      */
     private LocalDate parseBirth(String birthyear, String birthday) {
-        if (birthyear == null || birthyear.isBlank()
-        || birthday == null || birthday.isBlank()){
+
+        // 카카오, 구글 소셜 로그인 경우 생년월일은 null이다.
+        if (birthyear == null || birthyear.isBlank() || birthday == null || birthday.isBlank()){
             return null;
         }
 
