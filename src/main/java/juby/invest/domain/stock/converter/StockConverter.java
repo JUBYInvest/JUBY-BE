@@ -3,7 +3,9 @@ package juby.invest.domain.stock.converter;
 import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.stock.dto.StockDetailDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
+import juby.invest.domain.stock.dto.StockSearchDto;
 import juby.invest.domain.stock.entity.DailyPrice;
+import juby.invest.domain.stock.entity.Stock;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -19,6 +21,14 @@ public class StockConverter {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     // 네이버 뉴스 API의 pubDate 형식: "Mon, 11 Aug 2026 14:32:00 +0900"
     private static final DateTimeFormatter PUB_DATE_FORMATTER = DateTimeFormatter.RFC_1123_DATE_TIME;
+
+    // Stock 엔티티를 종목명 검색(자동완성) 응답 항목으로 변환한다.
+    public static StockSearchDto.StockSearchItem toStockSearchItem(Stock stock){
+        return StockSearchDto.StockSearchItem.builder()
+                .stockCode(stock.getStockCode())
+                .stockName(stock.getStockName())
+                .build();
+    }
 
     /***
      * 함수 기능: DailyPrice 엔티티를 뉴스상세정보조회 API의 응답 DTO로 변환한다.

@@ -5,6 +5,7 @@
     <title>OpenAI 챗봇 테스트</title>
     <style>
         * { box-sizing: border-box; }
+        [hidden] { display: none !important; } /* display를 지정한 요소(.stock-chip 등)도 hidden 속성으로 숨겨지도록 */
         html, body {
             margin: 0; padding: 0; height: 100%;
             font-family: -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
@@ -104,8 +105,34 @@
             display: flex; flex-direction: column; gap: 8px;
         }
         .composer .row { display: flex; gap: 8px; }
-        .composer input#stockName {
-            width: 200px; padding: 8px 10px; border-radius: 8px; border: 1px solid #ccc;
+        /* ===== 종목 선택 (검색 자동완성) ===== */
+        .stock-picker { position: relative; display: flex; align-items: center; gap: 8px; }
+        .stock-picker input#stockSearch {
+            width: 240px; padding: 8px 10px; border-radius: 8px; border: 1px solid #ccc;
+        }
+        .stock-suggestions {
+            position: absolute; top: 100%; left: 0; z-index: 10;
+            width: 240px; max-height: 260px; overflow-y: auto;
+            margin: 4px 0 0; padding: 4px; list-style: none;
+            background: #fff; border: 1px solid #ddd; border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+        .stock-suggestions li {
+            display: flex; justify-content: space-between; gap: 8px;
+            padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px;
+        }
+        .stock-suggestions li .code { color: #999; font-size: 12px; }
+        .stock-suggestions li:hover,
+        .stock-suggestions li.active { background: #eef7f4; }
+        .stock-suggestions li.empty { color: #999; cursor: default; }
+        .stock-suggestions li.empty:hover { background: transparent; }
+        .stock-chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 10px; border-radius: 16px;
+            background: #e6f4ef; color: #0b7a5e; font-size: 13px; font-weight: bold;
+        }
+        .stock-chip button {
+            border: none; background: transparent; cursor: pointer; color: #0b7a5e; font-size: 13px; padding: 0;
         }
         .composer textarea {
             flex: 1; resize: none; height: 44px; padding: 10px 12px;
@@ -146,13 +173,24 @@
         </div>
         <div class="composer">
             <div class="row">
-                <input id="stockName" placeholder="종목명 (선택, 비워두면 질문에서 자동 추론)">
+                <div class="stock-picker">
+                    <input id="stockSearch" autocomplete="off"
+                           placeholder="종목 검색 (선택, 예: 삼성)">
+                    <ul id="stockSuggestions" class="stock-suggestions" hidden></ul>
+                    <span id="stockChip" class="stock-chip" hidden>
+                        <span id="stockChipName"></span>
+                        <button type="button" title="종목 선택 해제" onclick="clearSelectedStock()">✕</button>
+                    </span>
+                </div>
             </div>
             <div class="row">
                 <textarea id="question" placeholder="질문을 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)"></textarea>
                 <button id="sendBtn" onclick="sendMessage()">보내기</button>
             </div>
-            <div class="hint">같은 대화방 안에서는 "그 종목은?" 같은 후속 질문도 이전 대화를 참고해서 처리합니다.</div>
+            <div class="hint">
+                종목은 검색 후보에서 선택해야 적용되며, 선택한 종목은 이번 질문에만 쓰이고 전송 후 자동 해제됩니다.
+                종목을 선택하지 않으면 질문과 이전 대화에서 종목을 추론합니다("그 종목은?" 같은 후속 질문 포함).
+            </div>
         </div>
     </main>
 </div>
@@ -343,7 +381,8 @@
     async function sendMessage() {
         const questionBox = document.getElementById("question");
         const question = questionBox.value.trim();
-        const stockName = document.getElementById("stockName").value.trim();
+        // 후보에서 선택한 종목만 보낸다(입력만 하고 선택하지 않은 검색어는 보내지 않음).
+        const stockName = selectedStock ? selectedStock.stockName : null;
         if (!question) return;
 
         const sendBtn = document.getElementById("sendBtn");
@@ -356,6 +395,9 @@
 
         questionBox.value = "";
         sendBtn.disabled = true;
+        // 선택한 종목은 이번 질문에만 적용한다. 계속 남아 있으면 "그럼 SK하이닉스는?" 같은 다음 질문도
+        // 이전 선택 종목 기준으로 답변하게 되므로(서버는 직접 보낸 stockName을 대화 문맥보다 우선함) 전송 즉시 해제한다.
+        clearSelectedStock();
 
         try {
             const result = await api("/api/open-ai/ask", {
@@ -366,22 +408,133 @@
             pendingRow.querySelector(".bubble").textContent = result.answer;
             pendingRow.querySelector(".bubble").classList.remove("pending");
 
-            const isNewSession = currentSessionId === null;
             currentSessionId = result.chatSessionId;
             document.getElementById("chatMeta").textContent =
                 "chatSessionId: " + result.chatSessionId + " / messageId: " + result.messageId;
 
-            await loadSessions(); // 제목 자동 생성/최근순 갱신 반영
-            if (isNewSession) {
-                document.getElementById("currentTitle").textContent =
-                    (sessions.find(s => s.chatSessionId === currentSessionId) || {}).title || "새 대화";
-            }
+            // 제목 자동 생성(새 대화방 또는 빈 대화방의 첫 질문)/최근순 갱신 반영
+            await loadSessions();
+            document.getElementById("currentTitle").textContent =
+                (sessions.find(s => s.chatSessionId === currentSessionId) || {}).title || "새 대화";
         } catch (e) {
             pendingRow.remove();
         } finally {
             sendBtn.disabled = false;
             scrollToBottom(box);
         }
+    }
+
+    // ===== 종목 선택 (검색 자동완성) =====
+    const SEARCH_DEBOUNCE_MS = 250;
+    const stockSearchInput = document.getElementById("stockSearch");
+    const stockSuggestionList = document.getElementById("stockSuggestions");
+    let selectedStock = null;   // { stockCode, stockName }
+    let suggestions = [];
+    let activeIndex = -1;       // 키보드로 이동 중인 후보 인덱스
+    let searchTimer = null;
+    let searchSeq = 0;          // 늦게 도착한 이전 검색 응답이 최신 결과를 덮어쓰지 않도록 구분
+
+    stockSearchInput.addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        const keyword = stockSearchInput.value.trim();
+        if (!keyword) {
+            hideSuggestions();
+            return;
+        }
+        // 글자마다 호출하지 않고 입력이 잠시 멈추면 검색한다.
+        searchTimer = setTimeout(() => searchStocks(keyword), SEARCH_DEBOUNCE_MS);
+    });
+
+    stockSearchInput.addEventListener("keydown", (e) => {
+        if (stockSuggestionList.hidden || suggestions.length === 0) return;
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActiveIndex((activeIndex + 1) % suggestions.length);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveIndex((activeIndex - 1 + suggestions.length) % suggestions.length);
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            selectStock(suggestions[activeIndex >= 0 ? activeIndex : 0]);
+        } else if (e.key === "Escape") {
+            hideSuggestions();
+        }
+    });
+
+    // 입력창 밖을 클릭하면 후보 목록을 닫는다.
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest(".stock-picker")) hideSuggestions();
+    });
+
+    // 검색 API는 공개 API이고, 실패해도 질문 자체는 가능하므로 alert 없이 조용히 처리한다.
+    async function searchStocks(keyword) {
+        const seq = ++searchSeq;
+        let items = [];
+        try {
+            const response = await fetch("/api/stocks/search?keyword=" + encodeURIComponent(keyword));
+            const data = await response.json();
+            if (data.isSuccess) items = data.result;
+        } catch (e) { /* 네트워크 오류 등은 후보 없음으로 처리 */ }
+
+        if (seq !== searchSeq) return; // 더 최근 검색이 있으면 무시
+        suggestions = items;
+        renderSuggestions();
+    }
+
+    function renderSuggestions() {
+        stockSuggestionList.innerHTML = "";
+        activeIndex = -1;
+
+        if (suggestions.length === 0) {
+            const li = document.createElement("li");
+            li.className = "empty";
+            li.textContent = "검색 결과가 없습니다 (지원 종목만 검색됩니다)";
+            stockSuggestionList.appendChild(li);
+        }
+        suggestions.forEach((s, i) => {
+            const li = document.createElement("li");
+            const name = document.createElement("span");
+            name.textContent = s.stockName;
+            const code = document.createElement("span");
+            code.className = "code";
+            code.textContent = s.stockCode;
+            li.append(name, code);
+            li.onmouseenter = () => setActiveIndex(i);
+            li.onclick = () => selectStock(s);
+            stockSuggestionList.appendChild(li);
+        });
+        stockSuggestionList.hidden = false;
+    }
+
+    function setActiveIndex(index) {
+        activeIndex = index;
+        [...stockSuggestionList.children].forEach((li, i) => li.classList.toggle("active", i === index));
+        const active = stockSuggestionList.children[index];
+        if (active) active.scrollIntoView({ block: "nearest" });
+    }
+
+    function hideSuggestions() {
+        stockSuggestionList.hidden = true;
+        activeIndex = -1;
+    }
+
+    // 후보를 선택하면 검색창 대신 "종목명 ✕" 칩으로 보여준다.
+    function selectStock(stock) {
+        selectedStock = stock;
+        document.getElementById("stockChipName").textContent = stock.stockName;
+        document.getElementById("stockChip").hidden = false;
+        stockSearchInput.hidden = true;
+        stockSearchInput.value = "";
+        hideSuggestions();
+        document.getElementById("question").focus();
+    }
+
+    function clearSelectedStock() {
+        selectedStock = null;
+        document.getElementById("stockChip").hidden = true;
+        stockSearchInput.hidden = false;
+        stockSearchInput.value = "";
+        hideSuggestions();
     }
 
     document.getElementById("question").addEventListener("keydown", function (e) {

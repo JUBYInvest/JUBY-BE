@@ -3,9 +3,12 @@ package juby.invest.domain.stock.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import juby.invest.domain.stock.dto.StockDetailDto;
 import juby.invest.domain.stock.dto.StockListDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
+import juby.invest.domain.stock.dto.StockSearchDto;
 import juby.invest.domain.stock.enums.Period;
 import juby.invest.domain.stock.exception.code.StockSuccessCode;
 import juby.invest.domain.stock.service.StockService;
@@ -16,6 +19,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/stocks")
@@ -37,6 +42,24 @@ public class StockController {
             @Valid @ParameterObject @ModelAttribute StockListDto.StockListReq stockListReq
             ){
         return ApiResponse.onSuccess(StockSuccessCode.STOCK_LIST_OK, stockService.getStockList(user, stockListReq));
+    }
+
+    /***
+     * 함수 기능: 종목명에 검색어가 포함된 종목을 조회한다. (챗봇 종목 선택 자동완성용)
+     * @param keyword 검색어 (1~50자)
+     * @return 종목코드, 종목명 목록 (최대 10개)
+     */
+    @GetMapping("/search")
+    @Operation(summary = "종목명 검색 API",
+            description = "종목명에 검색어가 포함된 종목을 최대 10개 반환한다. 검색어로 시작하는 종목이 먼저 온다. " +
+                    "챗봇 종목 선택 자동완성에 사용하며, 선택한 stockName을 /api/open-ai/ask 요청에 담아 보내면 된다.")
+    public ApiResponse<List<StockSearchDto.StockSearchItem>> searchStocks(
+            @RequestParam
+            @NotBlank(message = "검색어는 필수입니다.")
+            @Size(max = 50, message = "검색어는 50자 이하로 입력해주세요.")
+            String keyword
+    ){
+        return ApiResponse.onSuccess(StockSuccessCode.STOCK_SEARCH_OK, stockService.searchStocks(keyword));
     }
 
     /***

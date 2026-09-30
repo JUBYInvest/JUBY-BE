@@ -14,7 +14,10 @@ public enum ChatErrorCode implements BaseErrorCode {
             "대화방을 찾을 수 없습니다."),
     SESSION_FORBIDDEN(HttpStatus.FORBIDDEN,
             "CHAT403_1",
-            "본인의 대화방만 접근할 수 있습니다.");
+            "본인의 대화방만 접근할 수 있습니다."),
+    ANSWER_IN_PROGRESS(HttpStatus.CONFLICT,
+            "CHAT409_1",
+            "이전 질문에 대한 답변을 생성 중입니다. 답변이 끝난 뒤 다시 질문해주세요.");
 
     private final HttpStatus status;
     private final String code;

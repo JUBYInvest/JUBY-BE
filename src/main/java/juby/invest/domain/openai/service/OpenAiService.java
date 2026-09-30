@@ -67,9 +67,32 @@ public class OpenAiService {
         // chatSessionId가 없으면 이번 질문으로 제목을 자동 생성해 새 대화방을 만들고, 있으면 본인 소유 대화방인지 검증한다.
         ChatSession session = chatService.getOrCreateSession(memberId, chatSessionId, question);
 
+        // 같은 대화방에서 이미 답변을 생성 중이면 409로 거절한다(질문 저장 전이라 거절된 질문은 남지 않는다).
+        // 답변 처리가 성공하든 실패하든 끝나면 반드시 선점을 해제한다.
+        chatService.acquireAnswering(session.getId());
+        try {
+            return answerInSession(session, personality, investType, question, stockName);
+        } finally {
+            releaseAnswering(session.getId());
+        }
+    }
+
+    /***
+     * 함수 기능: 답변 생성을 선점한 대화방에서 이전 대화 문맥을 참고해 이번 질문의 답변을 생성하고,
+     *          질문/답변을 대화방에 저장한다.
+     */
+    private OpenAiResDto.AskResult answerInSession(
+            ChatSession session, Personality personality, int investType,
+            String question, String stockName) throws ApiException {
+
         // 이번 질문을 저장하기 "전" 시점의 직전 대화 이력. OpenAI 호출 실패와 무관하게 문맥 판단에만 쓴다.
         List<ChatContent> previousTurns = chatService.getRecentMessages(session.getId(), RECENT_MESSAGE_LIMIT);
         List<Message> historyMessages = toHistoryMessages(previousTurns);
+
+        // 이전 대화가 없으면 이번이 첫 질문이므로, 빈 대화방으로 먼저 만들어져 제목이 기본값이면 질문으로 제목을 정한다.
+        if (previousTurns.isEmpty()) {
+            chatService.applyAutoTitleIfDefault(session.getId(), question);
+        }
 
         // 사용자 질문은 이후 AI 호출이 실패하더라도 유지되도록 먼저 저장한다.
         chatService.appendMessage(session, ChatRole.USER, question);
@@ -130,7 +153,15 @@ public class OpenAiService {
         messages.addAll(historyMessages);
         messages.add(new UserMessage(userText));
 
-        String result = chatModel.call(messages.toArray(new Message[0]));
+        // 타임아웃, 429(요청 한도 초과) 등 OpenAI 호출 자체가 실패하면 원본 예외 메시지 대신 정해진 에러 코드로 응답한다.
+        // 사용자 질문은 이미 저장돼 있으므로 대화방에는 질문만 남고, 재질문 시 이어서 대화할 수 있다.
+        String result;
+        try {
+            result = chatModel.call(messages.toArray(new Message[0]));
+        } catch (RuntimeException e) {
+            log.error("OpenAI 답변 생성 호출 실패. chatSessionId: {}", session.getId(), e);
+            throw new OpenAiException(OpenAiErrorCode.CALL_FAILED);
+        }
         if (result == null || result.isBlank()) {
             throw new OpenAiException(OpenAiErrorCode.EMPTY_ANSWER);
         }
@@ -141,6 +172,15 @@ public class OpenAiService {
                 .chatSessionId(session.getId())
                 .messageId(assistantMessage.getId())
                 .build();
+    }
+
+    // 선점 해제 실패가 원래 결과(답변 또는 예외)를 덮어쓰지 않도록 로그만 남긴다. 해제되지 않은 선점은 일정 시간 후 자동으로 풀린다.
+    private void releaseAnswering(Long chatSessionId) {
+        try {
+            chatService.releaseAnswering(chatSessionId);
+        } catch (RuntimeException e) {
+            log.error("답변 생성 선점 해제 실패. chatSessionId: {}", chatSessionId, e);
+        }
     }
 
     // 저장된 대화 이력(ChatContent)을 OpenAI 메시지 목록(User/Assistant)으로 변환한다.

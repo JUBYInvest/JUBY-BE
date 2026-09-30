@@ -18,6 +18,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -28,6 +30,8 @@ public class ChatService {
 
     private static final String DEFAULT_TITLE = "새 대화";
     private static final int MAX_TITLE_LENGTH = 30;
+    // 답변 생성 선점 후 이 시간이 지나도 해제되지 않았다면(서버 중단 등) 멈춘 것으로 보고 다시 선점을 허용한다.
+    private static final Duration ANSWERING_STALE_TIMEOUT = Duration.ofMinutes(5);
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatContentRepository chatContentRepository;
@@ -89,6 +93,19 @@ public class ChatService {
     }
 
     /***
+     * 함수 기능: 빈 대화방(대화방 생성 API로 먼저 만든 경우)에 첫 질문이 들어오면, 제목이 아직 기본값일 때만
+     *          첫 질문을 바탕으로 제목을 자동 생성한다. 사용자가 직접 바꾼 제목은 덮어쓰지 않는다.
+     */
+    @Transactional
+    public void applyAutoTitleIfDefault(Long chatSessionId, String firstQuestion) {
+        ChatSession session = chatSessionRepository.findById(chatSessionId)
+                .orElseThrow(() -> new ChatException(ChatErrorCode.SESSION_NOT_FOUND));
+        if (DEFAULT_TITLE.equals(session.getTitle())) {
+            session.updateTitle(normalizeTitle(firstQuestion, true));
+        }
+    }
+
+    /***
      * 함수 기능: OpenAI 문맥에 포함할 직전 대화 이력을 오래된 순으로 최대 limit개 조회한다.
      *          (이번 턴의 질문은 포함하지 않은, 순수한 "이전" 대화만 대상으로 한다)
      */
@@ -105,6 +122,26 @@ public class ChatService {
                 ChatContent.builder().chatSession(session).role(role).content(content).build());
         session.touch();
         return saved;
+    }
+
+    /***
+     * 함수 기능: 대화방의 답변 생성을 선점한다. 같은 대화방에서 이미 답변을 생성 중이면 예외를 던져
+     *          질문/답변 순서가 섞이지 않도록 한다. 다른 대화방의 요청에는 영향을 주지 않는다.
+     */
+    @Transactional
+    public void acquireAnswering(Long chatSessionId) {
+        LocalDateTime now = LocalDateTime.now();
+        int updated = chatSessionRepository.tryAcquireAnswering(
+                chatSessionId, now, now.minus(ANSWERING_STALE_TIMEOUT));
+        if (updated == 0) {
+            throw new ChatException(ChatErrorCode.ANSWER_IN_PROGRESS);
+        }
+    }
+
+    // 답변 생성 선점 해제. 성공/실패와 관계없이 답변 처리가 끝나면 호출한다.
+    @Transactional
+    public void releaseAnswering(Long chatSessionId) {
+        chatSessionRepository.releaseAnswering(chatSessionId);
     }
 
     private ChatSession getOwnedSession(Long memberId, Long chatSessionId) {

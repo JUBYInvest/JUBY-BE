@@ -11,7 +11,10 @@ public enum OpenAiErrorCode implements BaseErrorCode {
 
     EMPTY_ANSWER(HttpStatus.BAD_GATEWAY,
             "OPENAI502_1",
-            "AI 답변 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+            "AI 답변 생성에 실패했습니다. 잠시 후 다시 시도해주세요."),
+    CALL_FAILED(HttpStatus.BAD_GATEWAY,
+            "OPENAI502_2",
+            "AI 서버와 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
 
     private final HttpStatus status;
     private final String code;

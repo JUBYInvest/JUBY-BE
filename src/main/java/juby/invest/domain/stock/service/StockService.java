@@ -10,6 +10,7 @@ import juby.invest.domain.stock.converter.StockConverter;
 import juby.invest.domain.stock.dto.StockDetailDto;
 import juby.invest.domain.stock.dto.StockListDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
+import juby.invest.domain.stock.dto.StockSearchDto;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
 import juby.invest.domain.stock.enums.Period;
@@ -19,6 +20,7 @@ import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.stock.repository.StockRepository;
 import juby.invest.global.security.entity.CustomOAuth2User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +45,7 @@ public class StockService {
 
     private static final LocalDate START_OF_THE_DATE = LocalDate.of(2025, 1, 2);
     private static final int PAGE_SIZE = 10;
+    private static final int SEARCH_LIMIT = 10; // 종목명 검색(자동완성) 최대 결과 수
     // LATEST 정렬 기준: 발행일 내림차순 -> ID 내림차순
     private static final Comparator<PineconeDto.StockNewsHit> LATEST_FIRST =
             Comparator.comparing(
@@ -161,6 +164,24 @@ public class StockService {
                 .toList();
 
         return StockNewsDto.StockNewsRes.of(stockCode, stock.getStockName(), sort, newsList, page, hits.size());
+    }
+
+    /***
+     * 함수 기능: 종목명에 검색어가 포함된 종목을 최대 SEARCH_LIMIT개 조회한다. (챗봇 종목 선택 자동완성용)
+     *          검색어로 시작하는 종목을 먼저, 그 다음 종목명 순으로 정렬한다.
+     * @param keyword 검색어 (앞뒤 공백 제거 후 사용)
+     * @return 종목코드, 종목명 목록
+     */
+    @Transactional(readOnly = true)
+    public List<StockSearchDto.StockSearchItem> searchStocks(String keyword) {
+        // 사용자가 입력한 %, _ 가 LIKE 와일드카드로 해석되지 않도록 이스케이프 문자('!')로 이스케이프한다.
+        String escaped = keyword.trim()
+                .replace("!", "!!")
+                .replace("%", "!%")
+                .replace("_", "!_");
+        return stockRepository.searchByStockName(escaped, PageRequest.of(0, SEARCH_LIMIT)).stream()
+                .map(StockConverter::toStockSearchItem)
+                .toList();
     }
 
     // 오늘날짜를 기준으로 역산하여 시작일을 계산한다.
