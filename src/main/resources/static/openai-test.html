@@ -96,6 +96,22 @@
         .bubble.user { background: #10a37f; color: #fff; border-bottom-right-radius: 4px; }
         .bubble.assistant { background: #f1f1f3; color: #222; border-bottom-left-radius: 4px; }
         .bubble.pending { color: #999; font-style: italic; }
+        /* ===== AI 답변 마크다운/수식 렌더링 ===== */
+        .bubble.markdown { white-space: normal; }
+        .bubble.markdown > :first-child { margin-top: 0; }
+        .bubble.markdown > :last-child { margin-bottom: 0; }
+        .bubble.markdown p { margin: 0 0 8px; }
+        .bubble.markdown ul, .bubble.markdown ol { margin: 0 0 8px; padding-left: 20px; }
+        .bubble.markdown h1, .bubble.markdown h2, .bubble.markdown h3, .bubble.markdown h4 {
+            margin: 12px 0 6px; font-size: 15px;
+        }
+        .bubble.markdown code { background: #e4e4e8; padding: 1px 4px; border-radius: 4px; font-size: 13px; }
+        .bubble.markdown pre { background: #e4e4e8; padding: 8px; border-radius: 6px; overflow-x: auto; }
+        .bubble.markdown pre code { background: none; padding: 0; }
+        .bubble.markdown table { border-collapse: collapse; margin: 0 0 8px; }
+        .bubble.markdown th, .bubble.markdown td { border: 1px solid #ccc; padding: 4px 8px; }
+        .bubble.markdown blockquote { margin: 0 0 8px; padding-left: 10px; border-left: 3px solid #ccc; color: #555; }
+        .bubble.markdown .katex-display { margin: 8px 0; overflow-x: auto; overflow-y: hidden; }
         .empty-chat {
             margin: auto; color: #999; text-align: center; font-size: 14px;
         }
@@ -145,6 +161,11 @@
         .composer button#sendBtn:disabled { background: #aaa; cursor: not-allowed; }
         .composer .hint { font-size: 11px; color: #999; }
     </style>
+    <!-- AI 답변 렌더링: 마크다운(marked) + XSS 방지(DOMPurify) + 수식(KaTeX) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 </head>
 <body>
 
@@ -332,12 +353,52 @@
 
         const bubble = document.createElement("div");
         bubble.className = "bubble " + (isUser ? "user" : "assistant") + (pending ? " pending" : "");
-        bubble.textContent = content;
+        // AI 답변만 마크다운/수식으로 렌더링하고, 사용자 질문과 "답변 생성 중" 안내는 입력 그대로 보여준다.
+        if (isUser || pending) {
+            bubble.textContent = content;
+        } else {
+            renderAssistantContent(bubble, content);
+        }
         if (createdAt) bubble.title = new Date(createdAt).toLocaleString(); // 마우스 오버 시 작성 시각 표시
 
         row.appendChild(bubble);
         box.appendChild(row);
         return row;
+    }
+
+    // 블록 수식 \[...\], $$...$$ 와 인라인 수식 \(...\). 단일 $...$ 는 "$100" 같은 가격 표기와 헷갈려 제외한다.
+    const MATH_PATTERN = /\\\[([\s\S]+?)\\\]|\$\$([\s\S]+?)\$\$|\\\(([\s\S]+?)\\\)/g;
+
+    /**
+     * AI 답변(마크다운 + LaTeX 수식)을 HTML로 렌더링해 element에 넣는다.
+     * 마크다운 파서가 수식 안의 \, _, * 를 먼저 망가뜨리지 않도록 수식을 자리표시자로 빼 두었다가,
+     * 마크다운 렌더링과 XSS 정리(DOMPurify)가 끝난 뒤 KaTeX 결과로 되돌려 넣는다.
+     * CDN 로드에 실패하면 원문 텍스트로 보여준다.
+     */
+    function renderAssistantContent(element, text) {
+        if (typeof marked === "undefined" || typeof DOMPurify === "undefined") {
+            element.textContent = text;
+            return;
+        }
+        const formulas = [];
+        const source = text.replace(MATH_PATTERN, (match, block1, block2, inline) => {
+            formulas.push({ tex: block1 ?? block2 ?? inline, display: inline === undefined });
+            return "@@MATH" + (formulas.length - 1) + "@@";
+        });
+
+        const html = DOMPurify.sanitize(marked.parse(source, { breaks: true }));
+        element.innerHTML = html.replace(/@@MATH(\d+)@@/g, (match, index) => {
+            const { tex, display } = formulas[Number(index)];
+            if (typeof katex === "undefined") return escapeHtml(tex);
+            return katex.renderToString(tex, { displayMode: display, throwOnError: false });
+        });
+        element.classList.add("markdown");
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     function scrollToBottom(box) {
@@ -405,8 +466,9 @@
                 body: JSON.stringify({ question, stockName, chatSessionId: currentSessionId })
             });
 
-            pendingRow.querySelector(".bubble").textContent = result.answer;
-            pendingRow.querySelector(".bubble").classList.remove("pending");
+            const answerBubble = pendingRow.querySelector(".bubble");
+            answerBubble.classList.remove("pending");
+            renderAssistantContent(answerBubble, result.answer);
 
             currentSessionId = result.chatSessionId;
             document.getElementById("chatMeta").textContent =
