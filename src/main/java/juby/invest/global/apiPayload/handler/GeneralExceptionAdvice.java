@@ -73,7 +73,7 @@ public class GeneralExceptionAdvice {
 
     // 그 외 지정되지 않은 예외 처리
     @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ApiResponse<String>> handleGlobalException(RuntimeException e){
+    public ResponseEntity<ApiResponse<Void>> handleGlobalException(RuntimeException e){
 
         // @PreAuthorize에 의한 AccessDenied 예외일 경우, ExceptionTranslation 필터에게 넘겨준다.
         if (e instanceof org.springframework.security.access.AccessDeniedException){
@@ -82,8 +82,9 @@ public class GeneralExceptionAdvice {
 
         log.error("[UnhandledException] {}", e.getMessage(), e);
 
+        // 원본 예외 메시지(SQL, 외부 API 응답 등 내부 정보)는 로그에만 남기고, 응답에는 공통 에러 코드만 담는다.
         BaseErrorCode errorCode = GeneralErrorCode.INTERNAL_SERVER_ERROR;
         return ResponseEntity.status(errorCode.getStatus())
-                .body(ApiResponse.onFailure(errorCode, e.getMessage()));
+                .body(ApiResponse.onFailure(errorCode, null));
     }
 }

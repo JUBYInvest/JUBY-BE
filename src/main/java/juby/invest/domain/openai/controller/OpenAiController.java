@@ -37,7 +37,12 @@ public class OpenAiController {
                     "stockName은 선택값이며, 비워서 보내면 질문 문장에서 종목명을 추론한다(종목 상세페이지에서 호출하는 " +
                     "경우처럼 종목이 명확할 때만 채워서 보내면 됨). 질문/추론된 종목명이 DB에 없는 종목이면 에러가 아니라 " +
                     "\"현재 지원하지 않는 종목입니다\" 안내 문구가 담긴 200 응답을 반환한다. " +
-                    "투자성향이 아직 등록되지 않은 회원이면 404(MEMBER404_2)가 반환되니, 이 경우 투자성향 테스트로 안내해야 한다.")
+                    "투자성향이 아직 등록되지 않은 회원이면 404(MEMBER404_2)가 반환되니, 이 경우 투자성향 테스트로 안내해야 한다. " +
+                    "chatSessionId는 선택값이며, 비우면 새 대화방을 생성해서 시작하고 값을 넘기면 해당 대화방에 이어서 " +
+                    "질문/답변을 저장한다(이전 대화 중 \"그 종목은?\" 같은 문맥 의존 질문도 대화 이력을 참고해 처리한다). " +
+                    "응답의 chatSessionId를 저장해뒀다가 다음 질문에 그대로 실어 보내면 대화가 이어진다. " +
+                    "같은 대화방에서 이전 질문의 답변을 아직 생성 중이면 409(CHAT409_1)가 반환되고 질문은 저장되지 않으니, " +
+                    "답변이 끝난 뒤 다시 보내야 한다(다른 대화방의 질문은 동시에 처리 가능).")
     @PostMapping("/ask")
     public ApiResponse<OpenAiResDto.AskResult> askQuestion(
             @AuthenticationPrincipal CustomOAuth2User user,
@@ -48,7 +53,8 @@ public class OpenAiController {
         }
 
         BaseSuccessCode successCode = GeneralSuccessCode.OK;
-        OpenAiResDto.AskResult result = openAiService.askQuestion(user.getId(), dto.question(), dto.stockName());
+        OpenAiResDto.AskResult result = openAiService.askQuestion(
+                user.getId(), dto.question(), dto.stockName(), dto.chatSessionId());
         return ApiResponse.onSuccess(successCode, result);
     }
 }
