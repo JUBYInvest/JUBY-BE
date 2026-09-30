@@ -16,6 +16,7 @@ import juby.invest.domain.member.repository.MemberRepository;
 import juby.invest.domain.openai.dto.OpenAiResDto;
 import juby.invest.domain.openai.exception.OpenAiException;
 import juby.invest.domain.openai.exception.code.OpenAiErrorCode;
+import juby.invest.domain.openai.prompt.PromptLoader;
 import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.pinecone.service.PineconeService;
 import juby.invest.domain.stock.entity.Stock;
@@ -28,12 +29,20 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.converter.BeanOutputConverter;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,6 +53,20 @@ public class OpenAiService {
     private static final BacktestPeriod DEFAULT_BACKTEST_PERIOD = BacktestPeriod.SIX_MONTHS;
     private static final double RECOMMEND_SCORE_THRESHOLD = 50.0; // finalScore(100점 만점) 기준 추천/비추천 컷라인
     private static final int RECENT_MESSAGE_LIMIT = 20; // OpenAI 문맥에 포함할 직전 대화 이력 최대 개수
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+    // resources/prompts/ 아래 프롬프트 파일. 내용을 바꿀 때는 파일명의 버전을 올려 어떤 프롬프트로 만든 답변인지 추적할 수 있게 한다.
+    private static final String CHAT_SYSTEM_PROMPT = "chat-system.v1.txt";
+    private static final String CHAT_USER_PROMPT = "chat-user.v1.txt";
+    private static final String CLASSIFY_SYSTEM_PROMPT = "classify-system.v1.txt";
+    private static final String CLASSIFY_USER_PROMPT = "classify-user.v1.txt";
+
+    private static final double CLASSIFY_TEMPERATURE = 0.0; // 분류: 같은 질문에 항상 같은 판단이 나오도록
+    private static final double ANSWER_TEMPERATURE = 0.4; // 답변: 자연스러운 설명은 유지하되 사실 정확도를 우선
+
+    // 프롬프트에서 데이터 경계로 쓰는 태그. 외부 텍스트에 섞여 들어오면 제거한다.
+    private static final Pattern DATA_TAG = Pattern.compile(
+            "</?\\s*(today|investor_profile|stock|backtest|news|question)\\s*>", Pattern.CASE_INSENSITIVE);
 
     private final PineconeService pineconeService;
     private final StockRepository stockRepository;
@@ -51,6 +74,7 @@ public class OpenAiService {
     private final BacktestPresetService backtestPresetService;
     private final ChatService chatService;
     private final OpenAiChatModel chatModel;
+    private final PromptLoader promptLoader;
 
     public OpenAiResDto.AskResult askQuestion(
             Long memberId, String question, String stockName, Long chatSessionId) throws ApiException {
@@ -129,27 +153,32 @@ public class OpenAiService {
         boolean hasBacktest = hasStock && decision.needsBacktest();
         boolean hasNews = hasStock && decision.needsNews();
 
-        // 2차 AI 호출: 실제로 필요한 섹션만 채워서 이번 턴의 질문을 조립한다(불필요한 placeholder 없음).
+        // 2차 AI 호출: 실제로 필요한 데이터 섹션만 태그로 감싸 이번 턴의 질문을 조립한다(불필요한 placeholder 없음).
         // 백테스트/뉴스 데이터는 항상 "이번 질문" 기준으로 새로 조회하며, 과거 턴의 결과를 재사용하지 않는다.
+        // 외부 텍스트(뉴스, 질문)는 태그를 흉내 내 데이터 경계를 깨지 못하도록 우리 태그 이름을 제거한 뒤 넣는다.
         List<String> sections = new ArrayList<>();
         // 로그인 사용자라면 항상 알 수 있는 정보라 "내 투자유형이 뭐야?" 같은 질문에도 근거로 쓸 수 있도록 항상 포함한다.
-        sections.add("[내 투자성향]\n" + personality.getInvestPersonality() + " - " + personality.getDescription());
+        sections.add(tag("investor_profile",
+                personality.getInvestPersonality() + " - " + stripDataTags(personality.getDescription())));
         if (hasStock) {
             // 질문이 "이 종목"/"그 종목" 같은 지시어여도 답변은 실제 종목명으로 하도록 명시해준다.
-            sections.add("[종목명]\n" + resolvedStockName);
+            sections.add(tag("stock", resolvedStockName));
         }
         if (hasBacktest) {
-            sections.add("[백테스트 스코어]\n" + buildBacktestSummary(stockCode, investType));
+            sections.add(tag("backtest", buildBacktestSummary(stockCode, investType)));
         }
         if (hasNews) {
-            sections.add("[관련 뉴스]\n" + formatNews(pineconeService.searchData(question, candidateName)));
+            sections.add(tag("news", stripDataTags(formatNews(pineconeService.searchData(question, candidateName)))));
         }
-        sections.add("[질문]\n" + question);
-        String userText = String.join("\n\n", sections);
+        String userText = promptLoader.render(CHAT_USER_PROMPT, Map.of(
+                "today", LocalDate.now(KST).toString(),
+                "context", String.join("\n\n", sections),
+                "question", stripDataTags(question)));
 
-        SystemMessage systemMessage = new SystemMessage(buildSystemPrompt(hasStock, hasBacktest, hasNews));
+        // 시스템 프롬프트는 데이터 조합과 무관하게 항상 같은 텍스트다(조건별 규칙은 "태그가 있으면" 형태로 파일에 포함).
+        // 매 호출의 앞부분이 동일해야 OpenAI의 자동 프롬프트 캐싱이 적용된다.
         List<Message> messages = new ArrayList<>();
-        messages.add(systemMessage);
+        messages.add(new SystemMessage(promptLoader.load(CHAT_SYSTEM_PROMPT)));
         messages.addAll(historyMessages);
         messages.add(new UserMessage(userText));
 
@@ -157,7 +186,7 @@ public class OpenAiService {
         // 사용자 질문은 이미 저장돼 있으므로 대화방에는 질문만 남고, 재질문 시 이어서 대화할 수 있다.
         String result;
         try {
-            result = chatModel.call(messages.toArray(new Message[0]));
+            result = callChatModel(messages, ANSWER_TEMPERATURE);
         } catch (RuntimeException e) {
             log.error("OpenAI 답변 생성 호출 실패. chatSessionId: {}", session.getId(), e);
             throw new OpenAiException(OpenAiErrorCode.CALL_FAILED);
@@ -192,47 +221,20 @@ public class OpenAiService {
                 .toList();
     }
 
-    /***
-     * 함수 기능: 실제로 답변에 쓰이는 데이터 조합(백테스트/뉴스 유무)에 맞춰 시스템 프롬프트를 조립한다.
-     *          쓰지 않는 데이터에 대한 안내를 넣는 대신, 실제 쓰는 데이터에 맞는 지시만 포함시킨다.
-     */
-    private String buildSystemPrompt(boolean hasStock, boolean hasBacktest, boolean hasNews) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("너는 주식 투자 초보자를 위한 비서야. 아래 원칙을 지켜서 답변해.\n");
-        sb.append("- 주식과 이 시스템과 관련이 없는 질문이라면 투자와 관련한 질문만 해달라는 답변을 넘겨.\n");
-        sb.append("- 초보자도 이해할 수 있는 쉬운 말로 설명해.\n");
-        sb.append("- 답변 길이와 구성(형식)은 질문 성격에 맞게 그때그때 판단해. 종목 분석처럼 여러 근거(수치, 뉴스)를 " +
-                "풀어서 설명해야 하는 질문이면 충분히 구체적으로 설명하고, \"내 투자유형이 뭐야\", \"PER이 뭐야\" 처럼 " +
-                "단순한 사실 확인이나 개념 질문이면 군더더기 없이 물어본 것에 바로, 간결하게 답해. 짧게 답할 수 있는 " +
-                "질문을 억지로 길게 늘리거나 불필요한 형식에 끼워 맞추지 마.\n");
-        sb.append("- 대화 이력이 있다면 문맥 파악에는 참고하되, 답변의 근거 수치·뉴스는 반드시 이번 턴에 새로 주어진 " +
-                "[백테스트 스코어]/[관련 뉴스] 섹션만 사용해. 이전 턴에서 언급됐던 수치나 기사를 이번 턴의 최신 정보인 것처럼 다시 인용하지 마.\n");
+    // 호출별 옵션(temperature)을 지정해 OpenAI를 호출하고 응답 텍스트를 꺼낸다. 모델명 등 나머지 옵션은 기본 설정을 따른다.
+    private String callChatModel(List<Message> messages, double temperature) {
+        Prompt prompt = new Prompt(messages, OpenAiChatOptions.builder().temperature(temperature).build());
+        return chatModel.call(prompt).getResult().getOutput().getText();
+    }
 
-        if (hasStock) {
-            sb.append("- 사용자가 \"이 종목\", \"그 종목\" 같은 지시어로 질문했더라도, 답변에서는 [종목명]에 주어진 " +
-                    "실제 종목명을 사용해서 설명해. 지시어를 그대로 따라 쓰지 마.\n");
-        }
-        if (hasBacktest) {
-            sb.append("- [백테스트 스코어]의 수치(수익률, MDD, 변동성, 샤프지수 등)를 반드시 근거로 인용하면서, ")
-                    .append("각 수치가 무슨 의미인지 초보자 눈높이에서 해석까지 덧붙여 설명해.\n");
-            sb.append("- [백테스트 스코어]에 있는 '투자성향 기준 추천 여부'를 답변에 명시적으로 언급하고, ")
-                    .append("왜 그렇게 판단되는지(점수, 지표) 근거를 같이 설명해. 이 추천 여부 언급은 백테스트 데이터를 ")
-                    .append("사용하는 답변에서만 하고, 백테스트 데이터가 없는 답변에는 넣지 마.\n");
-        }
-        if (hasNews) {
-            sb.append("- [관련 뉴스]의 기사 내용을 반드시 근거로 인용하면서, 어떤 이슈이고 왜 중요한지 풀어서 설명해.\n");
-        }
-        if (!hasBacktest && !hasNews) {
-            sb.append("- 지금은 특정 종목의 수치, 뉴스 데이터가 제공되지 않았어. 일반적인 투자 지식 범위에서만 답변하고, ")
-                    .append("특정 수치나 최근 소식을 지어내지 마.\n");
-        }
-        if (hasBacktest || hasNews) {
-            sb.append("- 수치, 뉴스를 종합해서 설명해야 하는 질문이면 가능하면 (1) 핵심 요약 (2) 근거 상세 설명 ")
-                    .append("(3) 참고할 점/주의사항 순서로 구성해. 다만 질문이 그중 한 가지만 콕 집어 묻는 등 단순하면 ")
-                    .append("이 형식에 얽매이지 말고 물어본 것에 바로 답해.\n");
-        }
-        sb.append("- 제공되지 않은 수치나 뉴스 내용을 지어내지 말고, 실제로 갖고 있는 정보 안에서만 답변해.\n");
-        return sb.toString();
+    // 프롬프트의 데이터 섹션을 XML 태그로 감싼다.
+    private String tag(String name, String body) {
+        return "<%s>\n%s\n</%s>".formatted(name, body, name);
+    }
+
+    // 외부 텍스트에 섞인 우리 데이터 태그(<news>, </question> 등)를 제거해, 태그를 흉내 내 데이터 경계를 깨지 못하게 한다.
+    private String stripDataTags(String text) {
+        return text == null ? "" : DATA_TAG.matcher(text).replaceAll("");
     }
 
     /***
@@ -245,34 +247,19 @@ public class OpenAiService {
 
         BeanOutputConverter<RoutingDecision> converter = new BeanOutputConverter<>(RoutingDecision.class);
 
-        SystemMessage systemMessage = new SystemMessage(
-                "너는 주식 투자 챗봇의 라우팅 어시스턴트야. 사용자 질문에 답하기 위해 어떤 데이터가 필요한지만 판단해. " +
-                        "직전 대화 이력이 주어지면, \"그 종목은?\", \"그러면 뉴스는?\" 같이 이전 대화를 지칭하는 표현이 " +
-                        "가리키는 대상을 그 이력을 참고해서 해석해.");
-
-        String userText = """
-                현재 질문: %s
-
-                판단 기준:
-                - needsBacktest: 수익률, 변동성, 적합도 등 정량적인 백테스트 데이터가 필요하면 true
-                - needsNews: 최근 이슈, 실적, 사건 등 뉴스 맥락이 필요하면 true
-                - 두 데이터 모두 필요 없는 일반적인 투자 개념 질문이면 둘 다 false
-                - stockName: 현재 질문에서 특정 종목(예: "삼성전자")이 직접 언급되면 그 종목명을 적어줘.
-                  직접 언급이 없어도 "그 종목", "그러면" 처럼 직전 대화를 지칭하는 표현이면, 대화 이력에서
-                  가리키는 종목명을 찾아 적어줘. 그래도 특정 종목을 알 수 없거나 특정 종목에 대한 질문이
-                  아니면 null로 남겨줘. 확실하지 않으면 추측해서 채우지 말고 null로 남겨줘.
-
-                %s
-                """.formatted(question, converter.getFormat());
-        UserMessage userMessage = new UserMessage(userText);
+        // 지시문/판단 기준/few-shot 예시는 시스템 프롬프트에, 분류할 질문과 출력 형식은 사용자 메시지에 둔다.
+        String userText = promptLoader.render(CLASSIFY_USER_PROMPT, Map.of(
+                "question", stripDataTags(question),
+                "format", converter.getFormat()));
 
         List<Message> messages = new ArrayList<>();
-        messages.add(systemMessage);
+        messages.add(new SystemMessage(promptLoader.load(CLASSIFY_SYSTEM_PROMPT)));
         messages.addAll(historyMessages);
-        messages.add(userMessage);
+        messages.add(new UserMessage(userText));
 
         try {
-            String raw = chatModel.call(messages.toArray(new Message[0]));
+            // 분류는 같은 질문에 항상 같은 판단이 나와야 하므로 temperature를 0으로 고정한다.
+            String raw = callChatModel(messages, CLASSIFY_TEMPERATURE);
             return converter.convert(raw);
         } catch (Exception e) {
             log.warn("질문 라우팅 분류 실패. 기본값(백테스트+뉴스 모두 사용, 종목명 없음)으로 대체합니다.", e);
@@ -294,22 +281,39 @@ public class OpenAiService {
                     ? "추천 (투자성향에 비교적 적합한 편)"
                     : "비추천 (투자성향에 비교적 적합하지 않은 편)";
 
+            // 수익률/MDD/변동성은 비율(0.123 = 12.3%)로 저장돼 있으므로 퍼센트로 환산해서 넘긴다.
             return """
                     (최근 %s, 투자성향 %d유형 기준)
                     - 종합 적합도 점수: %.1f점 (100점 만점, %.0f점 이상이면 추천)
                     - 투자성향 기준 추천 여부: %s
-                    - 총수익률 %s%%, 연환산 수익률 %s%%
-                    - 최대낙폭(MDD) %s%%, 변동성 %s%%
+                    - 총수익률 %s, 연환산 수익률 %s
+                    - 최대낙폭(MDD) %s, 변동성 %s
                     - 샤프지수 %s, 소르티노지수 %s
                     """.formatted(
                     preset.period().getLabel(), investType, r.finalScore(), RECOMMEND_SCORE_THRESHOLD, recommendation,
-                    r.profit().totalReturn(), r.profit().annualReturn(),
-                    r.stable().mdd(), r.stable().volatility(),
-                    r.effect().sharpeRatio(), r.effect().sortinoRatio());
+                    toPercent(r.profit().totalReturn()), toPercent(r.profit().annualReturn()),
+                    toPercent(r.stable().mdd()), toPercent(r.stable().volatility()),
+                    toDecimal(r.effect().sharpeRatio()), toDecimal(r.effect().sortinoRatio()));
         } catch (BacktestException e) {
             log.warn("백테스트 프리셋 없음. stockCode: {}, investType: {}", stockCode, investType, e);
             return "해당 종목의 백테스트 데이터가 아직 준비되지 않았습니다.";
         }
+    }
+
+    // 비율 값(0.123)을 소수 둘째 자리 퍼센트 문자열("12.30%")로 변환한다.
+    private String toPercent(BigDecimal ratio) {
+        if (ratio == null) {
+            return "정보 없음";
+        }
+        return ratio.movePointRight(2).setScale(2, RoundingMode.HALF_UP).toPlainString() + "%";
+    }
+
+    // 샤프/소르티노 같은 지수 값을 소수 둘째 자리까지 표시한다.
+    private String toDecimal(BigDecimal value) {
+        if (value == null) {
+            return "정보 없음";
+        }
+        return value.setScale(2, RoundingMode.HALF_UP).toPlainString();
     }
 
     // 뉴스 검색 결과를 프롬프트에 넣기 좋은 텍스트로 변환한다.
