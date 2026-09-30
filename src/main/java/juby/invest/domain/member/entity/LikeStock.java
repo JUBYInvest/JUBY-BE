@@ -2,13 +2,17 @@ package juby.invest.domain.member.entity;
 
 import jakarta.persistence.*;
 import juby.invest.domain.stock.entity.Stock;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
+import java.time.LocalDateTime;
 
 @Entity
-@Data
-@NoArgsConstructor
-@Table(name = "like_stock")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
+@Table(name = "like_stock",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_like_stock_member_stock",
+                columnNames = {"member_id", "stock_code"}))
 public class LikeStock {
 
     @Id
@@ -22,4 +26,14 @@ public class LikeStock {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
     private Member member;
+
+    @Column(name = "liked_at", nullable = false)
+    private LocalDateTime likedAt;
+
+    @Builder
+    public LikeStock(Stock stock, Member member) {
+        this.stock = stock;
+        this.member = member;
+        this.likedAt = LocalDateTime.now();
+    }
 }

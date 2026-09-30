@@ -8,7 +8,6 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
@@ -44,4 +43,13 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
         where dp.date = :baseDate
         """)
     List<DailyPrice> findAllByDateWithStock(LocalDate baseDate);
+
+    @Query("""
+        select dp
+        from DailyPrice dp
+        join fetch dp.stock s
+        where dp.date = :date
+            and s.stockCode in :stockCodes
+    """)
+    List<DailyPrice> findAllByDateAndStockCodesWithStock(LocalDate date, List<String> stockCodes);
 }

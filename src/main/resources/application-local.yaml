@@ -19,6 +19,16 @@ spring:
           kakao:
             redirect-uri: http://localhost:8080/login/oauth2/code/kakao
 
+app:
+  oauth2:
+    redirect-uri: http://localhost:5173/oauth2/callback
+    failure-redirect-uri: http://localhost:5173/oauth2/error
+  cors:
+    allowed-origins: http://localhost:5173
+  cookie:
+    secure: false
+    same-site: Lax
+
 logging:
   level:
     org.springframework.security: DEBUG

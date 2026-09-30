@@ -1,0 +1,55 @@
+name: juby
+
+services:
+  app:
+    image: ${DOCKERHUB_USERNAME}/${PROJECT_NAME}:latest
+    container_name: app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SPRING_PROFILES_ACTIVE: dev
+      TZ: Asia/Seoul
+      # 힙 제한
+      JAVA_TOOL_OPTIONS: "-Xms256m -Xmx384m -Xss512k -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - juby-net
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./low-mem.cnf:/etc/mysql/conf.d/low-mem.cnf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks:
+      - juby-net
+
+volumes:
+  mysql-data:
+
+networks:
+  juby-net:
+    name: juby-net
