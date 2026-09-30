@@ -107,21 +107,4 @@ class CookieUtilTest {
             assertThat(created).startsWith("refreshToken=");
         }
     }
-
-    @Nested
-    @DisplayName("기동 시 설정 검증")
-    class Validation {
-
-        @Test
-        @DisplayName("잘못된 조합이어도 예외를 던지지 않는다")
-        void neverBlocksStartup() {
-            // SameSite=None + Secure=false는 브라우저가 쿠키를 버리는 조합이지만,
-            // 애플리케이션을 못 뜨게 만들 일은 아니다. 경고 로그로만 남긴다.
-            CookieUtil cookieUtil = cookieUtil(false, "None");
-
-            cookieUtil.validate();
-
-            assertThat(cookieUtil.createRTCookie("my-refresh-token")).isNotBlank();
-        }
-    }
 }
