@@ -13,6 +13,7 @@ import juby.invest.domain.member.entity.Personality;
 import juby.invest.domain.member.exception.MemberException;
 import juby.invest.domain.member.exception.code.member.MemberErrorCode;
 import juby.invest.domain.member.repository.MemberRepository;
+import juby.invest.domain.openai.converter.PriceSummaryConverter;
 import juby.invest.domain.openai.dto.OpenAiResDto;
 import juby.invest.domain.openai.exception.OpenAiException;
 import juby.invest.domain.openai.exception.code.OpenAiErrorCode;
@@ -20,6 +21,7 @@ import juby.invest.domain.openai.prompt.PromptLoader;
 import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.pinecone.service.PineconeService;
 import juby.invest.domain.stock.entity.Stock;
+import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,9 +58,9 @@ public class OpenAiService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     // resources/prompts/ 아래 프롬프트 파일. 내용을 바꿀 때는 파일명의 버전을 올려 어떤 프롬프트로 만든 답변인지 추적할 수 있게 한다.
-    private static final String CHAT_SYSTEM_PROMPT = "chat-system.v1.txt";
+    private static final String CHAT_SYSTEM_PROMPT = "chat-system.v2.txt";
     private static final String CHAT_USER_PROMPT = "chat-user.v1.txt";
-    private static final String CLASSIFY_SYSTEM_PROMPT = "classify-system.v1.txt";
+    private static final String CLASSIFY_SYSTEM_PROMPT = "classify-system.v2.txt";
     private static final String CLASSIFY_USER_PROMPT = "classify-user.v1.txt";
 
     private static final double CLASSIFY_TEMPERATURE = 0.0; // 분류: 같은 질문에 항상 같은 판단이 나오도록
@@ -66,10 +68,11 @@ public class OpenAiService {
 
     // 프롬프트에서 데이터 경계로 쓰는 태그. 외부 텍스트에 섞여 들어오면 제거한다.
     private static final Pattern DATA_TAG = Pattern.compile(
-            "</?\\s*(today|investor_profile|stock|backtest|news|question)\\s*>", Pattern.CASE_INSENSITIVE);
+            "</?\\s*(today|investor_profile|stock|price|backtest|news|question)\\s*>", Pattern.CASE_INSENSITIVE);
 
     private final PineconeService pineconeService;
     private final StockRepository stockRepository;
+    private final DailyPriceRepository dailyPriceRepository;
     private final MemberRepository memberRepository;
     private final BacktestPresetService backtestPresetService;
     private final ChatService chatService;
@@ -123,14 +126,13 @@ public class OpenAiService {
 
         // 1차 AI 호출: 직전 대화 문맥을 참고해 답변에 필요한 데이터 종류 + 언급된(또는 지칭된) 종목명을 판단한다.
         RoutingDecision decision = classify(question, historyMessages);
-        log.info("질문 라우팅 결과. needsBacktest: {}, needsNews: {}, 추출된 종목명: {}",
-                decision.needsBacktest(), decision.needsNews(), decision.stockName());
+        log.info("질문 라우팅 결과. needsBacktest: {}, needsNews: {}, needsPrice: {}, 추출된 종목명: {}",
+                decision.needsBacktest(), decision.needsNews(), decision.needsPrice(), decision.stockName());
 
         // 명시적으로 넘어온 종목명(예: 종목 상세페이지에서 호출)을 우선하고, 없으면 문맥을 참고해 추출된 종목명을 쓴다.
         String candidateName = (stockName != null && !stockName.isBlank()) ? stockName : decision.stockName();
 
-        String stockCode = null;
-        String resolvedStockName = null;
+        Stock resolvedStock = null;
         if (candidateName != null && !candidateName.isBlank()) {
             Optional<Stock> stock = stockRepository.findByStockName(candidateName);
             if (stock.isEmpty()) {
@@ -145,16 +147,16 @@ public class OpenAiService {
                         .messageId(assistantMessage.getId())
                         .build();
             }
-            stockCode = stock.get().getStockCode();
-            resolvedStockName = stock.get().getStockName();
+            resolvedStock = stock.get();
         }
 
-        boolean hasStock = stockCode != null;
+        boolean hasStock = resolvedStock != null;
+        boolean hasPrice = hasStock && decision.needsPrice();
         boolean hasBacktest = hasStock && decision.needsBacktest();
         boolean hasNews = hasStock && decision.needsNews();
 
         // 2차 AI 호출: 실제로 필요한 데이터 섹션만 태그로 감싸 이번 턴의 질문을 조립한다(불필요한 placeholder 없음).
-        // 백테스트/뉴스 데이터는 항상 "이번 질문" 기준으로 새로 조회하며, 과거 턴의 결과를 재사용하지 않는다.
+        // 주가/백테스트/뉴스 데이터는 항상 "이번 질문" 기준으로 새로 조회하며, 과거 턴의 결과를 재사용하지 않는다.
         // 외부 텍스트(뉴스, 질문)는 태그를 흉내 내 데이터 경계를 깨지 못하도록 우리 태그 이름을 제거한 뒤 넣는다.
         List<String> sections = new ArrayList<>();
         // 로그인 사용자라면 항상 알 수 있는 정보라 "내 투자유형이 뭐야?" 같은 질문에도 근거로 쓸 수 있도록 항상 포함한다.
@@ -162,10 +164,14 @@ public class OpenAiService {
                 personality.getInvestPersonality() + " - " + stripDataTags(personality.getDescription())));
         if (hasStock) {
             // 질문이 "이 종목"/"그 종목" 같은 지시어여도 답변은 실제 종목명으로 하도록 명시해준다.
-            sections.add(tag("stock", resolvedStockName));
+            sections.add(tag("stock", resolvedStock.getStockName()));
+        }
+        if (hasPrice) {
+            sections.add(tag("price", PriceSummaryConverter.toSummary(
+                    dailyPriceRepository.findTop20ByStockOrderByDateDesc(resolvedStock))));
         }
         if (hasBacktest) {
-            sections.add(tag("backtest", buildBacktestSummary(stockCode, investType)));
+            sections.add(tag("backtest", buildBacktestSummary(resolvedStock.getStockCode(), investType)));
         }
         if (hasNews) {
             sections.add(tag("news", stripDataTags(formatNews(pineconeService.searchData(question, candidateName)))));
@@ -238,9 +244,9 @@ public class OpenAiService {
     }
 
     /***
-     * 함수 기능: 사용자 질문을 분석해 답변 생성 시 백테스트/뉴스 데이터가 필요한지, 질문에 특정 종목이
+     * 함수 기능: 사용자 질문을 분석해 답변 생성 시 주가/백테스트/뉴스 데이터가 필요한지, 질문에 특정 종목이
      *          언급(또는 대명사로 지칭)됐는지를 판단한다. 분류 호출이 실패하거나 파싱에 실패하면 안전하게
-     *          둘 다 사용하는 것으로 대체한다.
+     *          모두 사용하는 것으로 대체한다.
      * @param historyMessages 직전 대화 이력. "그 종목은?" 같은 지시어가 가리키는 대상을 해석하는 데 참고한다.
      */
     private RoutingDecision classify(String question, List<Message> historyMessages) {
@@ -262,8 +268,8 @@ public class OpenAiService {
             String raw = callChatModel(messages, CLASSIFY_TEMPERATURE);
             return converter.convert(raw);
         } catch (Exception e) {
-            log.warn("질문 라우팅 분류 실패. 기본값(백테스트+뉴스 모두 사용, 종목명 없음)으로 대체합니다.", e);
-            return new RoutingDecision(true, true, null);
+            log.warn("질문 라우팅 분류 실패. 기본값(주가+백테스트+뉴스 모두 사용, 종목명 없음)으로 대체합니다.", e);
+            return new RoutingDecision(true, true, true, null);
         }
     }
 
@@ -327,5 +333,5 @@ public class OpenAiService {
     }
 
     // AI 1차 호출(라우팅)의 판단 결과. 사용자에게는 노출되지 않는다.
-    private record RoutingDecision(boolean needsBacktest, boolean needsNews, String stockName) {}
+    private record RoutingDecision(boolean needsBacktest, boolean needsNews, boolean needsPrice, String stockName) {}
 }

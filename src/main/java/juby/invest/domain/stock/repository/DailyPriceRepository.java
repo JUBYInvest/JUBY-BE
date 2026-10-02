@@ -23,6 +23,9 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
     List<DailyPrice> findByStockAndDateBetweenOrderByDateAsc(Stock stock, LocalDate startDate, LocalDate endDate);
 
+    // 챗봇 주가 요약용: 종목의 최근 20거래일 일봉 (최신순)
+    List<DailyPrice> findTop20ByStockOrderByDateDesc(Stock stock);
+
     @Query("""
         select max(dp.date)
         from DailyPrice dp
