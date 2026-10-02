@@ -12,7 +12,8 @@ public enum StockSuccessCode implements BaseSuccessCode {
     STOCK_DETAIL_OK(HttpStatus.OK,"STOCK200_1", "종목 검색 요청이 성공하였습니다."),
     STOCK_NEWS_OK(HttpStatus.OK,"STOCK200_2","종목 뉴스 조회에 성공하였습니다." ),
     STOCK_LIST_OK(HttpStatus.OK,"STOCK200_3","금일 종가 보기 조회에 성공하였습니다." ),
-    STOCK_SEARCH_OK(HttpStatus.OK,"STOCK200_4","종목명 검색에 성공하였습니다." );
+    STOCK_SEARCH_OK(HttpStatus.OK,"STOCK200_4","종목명 검색에 성공하였습니다." ),
+    LEADING_STOCK_OK(HttpStatus.OK,"STOCK200_5","테마별 대표 종목 조회를 성공하였습니다." );
 
     private final HttpStatus status;
     private final String code;
