@@ -20,12 +20,16 @@ public interface BacktestPresetResultRepository extends JpaRepository<BacktestPr
     @Query("SELECT DISTINCT bpr.period FROM BacktestPresetResult bpr WHERE bpr.investType = :investType")
     List<BacktestPeriod> findDistinctPeriodsByInvestType(@Param("investType") int investType);
 
+    // 여러 종목의 프리셋을 한 번에 조회한다. (홈 화면 테마별 대장주)
+    // 응답에 종목명이 필요한데 bpr.stock이 LAZY라, join fetch로 함께 가져와 N+1을 막는다.
     @Query("""
         select bpr from BacktestPresetResult bpr
         join fetch bpr.stock s
-        where s.stockCode in : stockCodes
+        where s.stockCode in :stockCodes
         and bpr.investType = :investType
-        and bpr.period = : period
+        and bpr.period = :period
     """)
-    List<BacktestPresetResult> findAllByStockStockCodesAndInvestTypeAndPeriod(List<String> stockCodes, int investType, BacktestPeriod period);
+    List<BacktestPresetResult> findAllByStockStockCodesAndInvestTypeAndPeriod(@Param("stockCodes") List<String> stockCodes,
+                                                                             @Param("investType") int investType,
+                                                                             @Param("period") BacktestPeriod period);
 }
