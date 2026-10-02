@@ -19,4 +19,13 @@ public interface BacktestPresetResultRepository extends JpaRepository<BacktestPr
     // 해당 투자성향으로 실제 DB에 적재된(=배치 계산이 성공한) 기간 프리셋 목록. 종목 무관 global 기준.
     @Query("SELECT DISTINCT bpr.period FROM BacktestPresetResult bpr WHERE bpr.investType = :investType")
     List<BacktestPeriod> findDistinctPeriodsByInvestType(@Param("investType") int investType);
+
+    @Query("""
+        select bpr from BacktestPresetResult bpr
+        join fetch bpr.stock s
+        where s.stockCode in : stockCodes
+        and bpr.investType = :investType
+        and bpr.period = : period
+    """)
+    List<BacktestPresetResult> findAllByStockStockCodesAndInvestTypeAndPeriod(List<String> stockCodes, int investType, BacktestPeriod period);
 }
