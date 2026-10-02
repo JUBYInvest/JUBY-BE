@@ -1,5 +1,12 @@
 package juby.invest.domain.stock.service;
 
+import juby.invest.domain.backtest.dto.LeadingStockResDto;
+import juby.invest.domain.backtest.entity.BacktestPresetResult;
+import juby.invest.domain.backtest.enums.BacktestPeriod;
+import juby.invest.domain.backtest.enums.LeadingStockTheme;
+import juby.invest.domain.backtest.exception.BacktestException;
+import juby.invest.domain.backtest.exception.code.BacktestErrorCode;
+import juby.invest.domain.backtest.repository.BacktestPresetResultRepository;
 import juby.invest.domain.kis.market.dto.CurrentPriceRes;
 import juby.invest.domain.kis.market.service.MarketService;
 import juby.invest.domain.member.repository.LikeStockRepository;
@@ -25,16 +32,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static juby.invest.domain.stock.converter.StockConverter.calculateFluctuation;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class StockService {
 
     private final StockRepository stockRepository;
@@ -42,6 +48,7 @@ public class StockService {
     private final LikeStockRepository likeStockRepository;
     private final MarketService marketService;
     private final PineconeService pineconeService;
+    private final BacktestPresetResultRepository backtestPresetResultRepository;
 
     private static final LocalDate START_OF_THE_DATE = LocalDate.of(2025, 1, 2);
     private static final int PAGE_SIZE = 10;
@@ -59,7 +66,6 @@ public class StockService {
      *          스케줄러가 16시에 금일 데이터를 적재하므로, 적재 전에는 직전 거래일 기준으로 조회한다.
      * @return StockListRes 목록 (종목코드, 종목명, 종가, 등락률, 거래대금)
      */
-    @Transactional(readOnly = true)
     public StockListDto.StockListRes getStockList(CustomOAuth2User user, StockListDto.StockListReq stockListReq) {
 
         // 가장 최신 날짜와 기준일의 전 날짜
@@ -97,6 +103,49 @@ public class StockService {
                 .toList();
 
         return StockListDto.StockListRes.of(baseDate, stockList);
+    }
+
+    public LeadingStockResDto.LeadingStockRes getLeadingStocks() {
+
+        // 테마 대표 종목명 3개를 가져온다.
+        List<String> stockCodes = Arrays.stream(LeadingStockTheme.values())
+                .map(LeadingStockTheme::getStockCode)
+                .toList();
+
+        // 3종목의 백테스트 프리셋 결과를 한 번의 쿼리로 가져온다.
+        Map<String, BacktestPresetResult> presetsByStockCode = backtestPresetResultRepository.findAllByStockStockCodesAndInvestTypeAndPeriod(stockCodes, 3, BacktestPeriod.ONE_YEAR).stream()
+                .collect(Collectors.toMap(
+                        preset -> preset.getStock().getStockCode(),
+                        preset -> preset));
+
+        List<LeadingStockResDto.LeadingStock> leadingStocks = new ArrayList<>();
+        List<BacktestPresetResult> foundPresets = new ArrayList<>();
+
+        for (LeadingStockTheme theme : LeadingStockTheme.values()){
+            BacktestPresetResult preset = presetsByStockCode.get(theme.getStockCode());
+
+            foundPresets.add(preset);
+            leadingStocks.add(StockConverter.toLeadingStock(theme, preset));
+        }
+
+        BacktestPresetResult latest = foundPresets.stream()
+                .max(Comparator.comparing(BacktestPresetResult::getEndDate))
+                .orElseThrow(() -> new BacktestException(BacktestErrorCode.PRESET_NOT_FOUND));
+
+        LocalDateTime oldestUpdatedAt = foundPresets.stream()
+                .map(BacktestPresetResult::getUpdatedAt)
+                .min(Comparator.naturalOrder())
+                .orElse(null);
+
+        return new LeadingStockResDto.LeadingStockRes(
+                "SMA 이동평균선 전략",
+                BacktestPeriod.ONE_YEAR,
+                BacktestPeriod.ONE_YEAR.getLabel(),
+                latest.getStartDate(),
+                latest.getEndDate(),
+                oldestUpdatedAt,
+                leadingStocks
+        );
     }
 
     /***
@@ -172,7 +221,6 @@ public class StockService {
      * @param keyword 검색어 (앞뒤 공백 제거 후 사용)
      * @return 종목코드, 종목명 목록
      */
-    @Transactional(readOnly = true)
     public List<StockSearchDto.StockSearchItem> searchStocks(String keyword) {
         // 사용자가 입력한 %, _ 가 LIKE 와일드카드로 해석되지 않도록 이스케이프 문자('!')로 이스케이프한다.
         String escaped = keyword.trim()

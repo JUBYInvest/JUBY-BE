@@ -1,5 +1,8 @@
 package juby.invest.domain.stock.converter;
 
+import juby.invest.domain.backtest.dto.LeadingStockResDto;
+import juby.invest.domain.backtest.entity.BacktestPresetResult;
+import juby.invest.domain.backtest.enums.LeadingStockTheme;
 import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.stock.dto.StockDetailDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
@@ -8,6 +11,8 @@ import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
 import lombok.extern.slf4j.Slf4j;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -96,6 +101,29 @@ public class StockConverter {
 
         // 변동률은 소수 둘째 자리까지
         return Math.round((double) (closePrice - prevClosePrice) / prevClosePrice * 10000) / 100.0;
+    }
+
+    /***
+     * 함수 기능: 백테스트 프리셋 결과 1건을 테마별 대장주 응답 항목으로 변환한다.
+     * @param theme 대장주 테마
+     * @param preset 해당 종목의 백테스트 프리셋 결과
+     * @return
+     */
+    public static LeadingStockResDto.LeadingStock toLeadingStock(LeadingStockTheme theme, BacktestPresetResult preset) {
+        return LeadingStockResDto.LeadingStock.builder()
+                .stockCode(preset.getStock().getStockCode())
+                .theme(theme)
+                .themeLabel(theme.getLabel())
+                .stockName(preset.getStock().getStockName())
+                .returnPercentage(toReturnPercentage(preset.getTotalReturn()))
+                .tradeCount(preset.getPositionCount())
+                .build();
+    }
+
+    // 비율로 저장된 누적 수익률을 퍼센트로 변환한다.
+    private static BigDecimal toReturnPercentage(BigDecimal totalReturn) {
+
+        return totalReturn.multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP);
     }
 
     // 발행시각을 "방금 전 / N분 전 / N시간 전 / N일 전" 형태로 바꾼다.

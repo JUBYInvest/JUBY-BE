@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import juby.invest.domain.backtest.dto.LeadingStockResDto;
 import juby.invest.domain.stock.dto.StockDetailDto;
 import juby.invest.domain.stock.dto.StockListDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
@@ -42,6 +43,12 @@ public class StockController {
             @Valid @ParameterObject @ModelAttribute StockListDto.StockListReq stockListReq
             ){
         return ApiResponse.onSuccess(StockSuccessCode.STOCK_LIST_OK, stockService.getStockList(user, stockListReq));
+    }
+
+    @GetMapping("/leading-stocks")
+    @Operation(summary = "홈 화면 테마별 대장주 수익률 조회 API", description = "기술주, 방산주, 바이오주의 SMA 전략 1년 백테스트 누적 수익률을 제공한다.")
+    public ApiResponse<LeadingStockResDto.LeadingStockRes> getLeadingStocks(){
+        return ApiResponse.onSuccess(StockSuccessCode.LEADING_STOCK_OK, stockService.getLeadingStocks());
     }
 
     /***
