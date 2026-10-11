@@ -30,5 +30,7 @@ app:
     same-site: Lax
 
 logging:
+  pattern:
+    level: "%5p [%X{traceId:-}]"
   level:
-    org.springframework.security: DEBUG
+    juby.invest: DEBUG

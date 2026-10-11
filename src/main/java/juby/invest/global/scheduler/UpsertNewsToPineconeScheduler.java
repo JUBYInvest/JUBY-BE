@@ -25,11 +25,11 @@ public class UpsertNewsToPineconeScheduler {
     @Scheduled(cron = "0 0 0 1 * *")
     public void upsertAllStockNews() {
 
-        log.info("[스케줄러-3] 뉴스 벡터DB 적재 스케줄러 동작 시작.");
+        log.info("뉴스 벡터DB 적재 시작");
 
         PineconeDto.BulkUpsertSuccess result = pineconeService.upsertAllStockNews();
 
-        log.info("[스케줄러-3] 뉴스 벡터DB 적재 스케줄러 동작 완료. 전체 {}건 중 성공 {}건, 실패 종목: {}",
+        log.info("뉴스 벡터DB 적재 완료. 전체 {}건 중 성공 {}건, 실패 종목: {}",
                 result.totalCount(), result.successCount(), result.failedStocks());
     }
 }

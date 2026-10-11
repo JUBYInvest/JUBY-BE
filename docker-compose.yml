@@ -20,6 +20,15 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-northeast-2  # 서울 리전
+        awslogs-group: /juby/app        # CloudWatch에 생성될 로그 그룹 이름
+        awslogs-stream: app             # 로그 스트림 이름 (구분용)
+        mode: non-blocking              # CloudWatch API가 끊기면 로그를 버림
+        max-buffer-size: 4m
+        awslogs-create-group: "true"
     networks:
       - juby-net
 

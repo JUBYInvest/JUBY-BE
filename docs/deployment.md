@@ -12,8 +12,12 @@ Docker 네트워크로 연결하는 구성이다. 대상은 `t3.micro` (2 vCPU /
 │  │ CI가 교체     │            │ mysql-data   │  │
 │  └──────────────┘            └──────────────┘  │
 │         ▲                                      │
+│    8080 │ (호스트 내부에서만 접근)                  │
+│  ┌──────┴───────┐                               │
+│  │ nginx (443)  │ TLS 종료 → 8080으로 평문 전달     │
+│  └──────────────┘                               │
 └─────────┼──────────────────────────────────────┘
-      8080│ (보안 그룹: 8080, 22만 개방. 3306은 절대 열지 않음)
+       443│ (보안 그룹: 443, 80, 22만 개방. 8080·3306은 열지 않음)
 ```
 
 ## 전제: 고정 IP
@@ -295,8 +299,22 @@ dmesg -T | grep -i 'killed process'   # OOM killer 흔적
 | 포트 | 소스 | 비고 |
 |---|---|---|
 | 22 | 내 IP만 | `0.0.0.0/0` 금지 |
-| 8080 | `0.0.0.0/0` | 애플리케이션 |
+| 443 | `0.0.0.0/0` | nginx가 TLS를 종료하는 유일한 공개 입구 |
+| 80 | `0.0.0.0/0` | HTTPS 리다이렉트 + 인증서 갱신(ACME)용 |
+| 8080 | **열지 않음** | 아래 참고 |
 | 3306 | **열지 않음** | 아래 참고 |
+
+**8080을 공개하지 않는다.** 외부 트래픽은 반드시 nginx(443)를 거쳐야 한다. 두 가지 이유다.
+
+1. nginx가 붙이는 `X-Real-IP` / `X-Forwarded-*` 헤더를 신뢰할 수 있는 근거가 "우회 경로가 없다"는
+   사실뿐이다. 8080이 열려 있으면 클라이언트가 직접 8080으로 치면서 이 헤더를 **위조**할 수 있고,
+   그러면 `MdcLoggingFilter`가 기록하는 `clientIp`가 거짓이 된다 (`CLAUDE.md`의 Logging 참고).
+2. TLS를 우회해 평문으로 API를 호출할 수 있게 된다.
+
+더 조이려면 compose의 `ports`를 `127.0.0.1:8080:8080`으로 바꾼다. nginx가 같은 호스트에 있으므로
+프록시는 그대로 동작하고, 보안 그룹이 나중에 잘못 열리거나 같은 서브넷의 다른 호스트가 접근하는
+경우까지 막힌다. (Docker는 포트를 publish할 때 호스트 방화벽(ufw)보다 앞단의 iptables 규칙을
+직접 넣으므로, 호스트 방화벽만 믿으면 안 된다. 보안 그룹은 EC2 바깥이라 영향받지 않는다.)
 
 MySQL은 봇 스캔의 1순위 타깃이다. compose에 `ports`를 넣지 않았으므로 컨테이너
 포트는 `juby-net` 내부에서만 보인다. 로컬에서 DB를 들여다봐야 하면 SSH 터널을
@@ -316,10 +334,16 @@ ssh -L 3306:127.0.0.1:3306 -i <key.pem> <user>@<host>
   `docker compose down && up -d`로 안전하게 갈아탈 수 있다. 단
   `docker compose down -v`의 `-v`는 **볼륨을 지운다**. 절대 쓰지 말 것.
 - **HTTPS 구성 (완료)**: EC2 호스트의 nginx가 443을 받아 TLS를 종료하고 앱 컨테이너의
-  8080으로 평문 전달한다. 앱은 자기가 HTTP로 서비스된다고 인식하므로, nginx에
-  `proxy_set_header X-Forwarded-Proto $scheme;`(+ `X-Forwarded-Host`)가 있어야
-  앱이 만드는 절대 URL이 `https://`로 나온다. 인증 플로우는 `BACKEND_URL` 절대값을 쓰므로
-  영향받지 않고, 증상은 Swagger UI의 서버 주소가 `http://`로 보이는 정도다.
+  8080으로 평문 전달한다. nginx는 `X-Forwarded-Proto` / `X-Forwarded-Host` / `X-Real-IP` /
+  `X-Forwarded-For`를 붙여 넘긴다.
+- **알려진 증상 — Swagger UI 서버 주소가 `http://`로 보인다**: nginx가 헤더를 보내는 것만으로는
+  부족하고, 앱이 그 헤더를 **반영하려면** `server.forward-headers-strategy: FRAMEWORK`가 필요하다.
+  현재 미설정(=`NONE`)이라 앱은 자기가 `http://localhost:8080`으로 서비스된다고 믿고,
+  springdoc이 `request.getScheme()`으로 만드는 절대 URL이 `http://`로 나온다.
+  인증 플로우는 `BACKEND_URL` 절대값을 쓰므로 영향받지 않는다.
+  로깅 쪽은 `X-Real-IP`를 **헤더에서 직접** 읽으므로 이 설정과 무관하다
+  (`MdcLoggingFilter`, `CLAUDE.md`의 Logging 참고). 그래서 급한 사안이 아니라 별도 이슈로 분리해 둔다.
+  켤 때는 "8080이 열려 있지 않다"가 전제다 — 보안 그룹 절 참고.
 - **RT 쿠키 속성**: `app.cookie.secure: true` / `same-site: None`으로
   `application-dev.yaml`에 **고정**되어 있다. env로 바꾸는 값이 아니다.
   프론트와 백엔드가 서로 다른 site이므로 `SameSite=None`이 필수이고, `None`은 `Secure`를

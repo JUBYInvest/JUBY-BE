@@ -31,5 +31,14 @@ app:
     same-site: None
 
 logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        name: invest
+        environment: dev
   level:
-    org.springframework.security: INFO
+    root: INFO
+    juby.invest: INFO
+    org.hibernate.SQL: WARN

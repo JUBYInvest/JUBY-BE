@@ -24,9 +24,9 @@ public class DeleteExpiredATScheduler {
 
         try {
             int deleteCnt = accessTokenBlacklistRepository.deleteExpired(LocalDateTime.now());
-            log.info("[스케줄러-4] 블랙리스트 AT {}건 제거", deleteCnt);
+            log.info("블랙리스트 AT {}건 제거", deleteCnt);
         } catch (Exception e){
-            log.warn("[스케줄러-4] 블랙리스트 AT 정리 중 문제 발생", e);
+            log.warn("블랙리스트 AT 정리 중 문제 발생", e);
         }
     }
 }

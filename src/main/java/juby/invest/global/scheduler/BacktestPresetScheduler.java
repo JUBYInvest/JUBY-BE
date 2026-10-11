@@ -22,8 +22,8 @@ public class BacktestPresetScheduler {
      */
     @Scheduled(cron = "0 0 4 * * *")
     public void recalculatePresetResults() {
-        log.info("[스케줄러-2] 백테스트 프리셋 재계산 스케줄러 동작 시작.");
+        log.info("백테스트 프리셋 재계산 시작");
         backtestPresetService.recalculateAll();
-        log.info("[스케줄러-2] 백테스트 프리셋 재계산 스케줄러 동작 완료.");
+        log.info("백테스트 프리셋 재계산 완료");
     }
 }
