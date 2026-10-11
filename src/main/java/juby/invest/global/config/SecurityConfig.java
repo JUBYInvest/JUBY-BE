@@ -1,11 +1,13 @@
 package juby.invest.global.config;
 
+import juby.invest.domain.auth.service.AuthService;
 import juby.invest.global.security.exception.CustomAccessDenied;
 import juby.invest.global.security.exception.CustomEntryPoint;
 import juby.invest.global.security.handler.OAuth2FailureHandler;
 import juby.invest.global.security.handler.OAuth2SuccessHandler;
 import juby.invest.global.security.service.CustomOAuth2MemberService;
 import juby.invest.global.security.filter.JwtAuthenticationFilter;
+import juby.invest.global.security.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -33,9 +35,10 @@ public class SecurityConfig {
     private final CustomOAuth2MemberService customOAuth2MemberService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomEntryPoint customEntryPoint;
     private final CustomAccessDenied customAccessDenied;
+    private final JwtUtil jwtUtil;
+    private final AuthService authService;
 
     // 허용 url
     private final String[] allowUris = {
@@ -75,7 +78,7 @@ public class SecurityConfig {
                         .requestMatchers(allowUris).permitAll()
                         .anyRequest().authenticated())
 
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, authService), UsernamePasswordAuthenticationFilter.class)
 
                 .logout(AbstractHttpConfigurer::disable)
 
