@@ -31,6 +31,13 @@ public class DailyPriceScheduler {
     private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     /***
+     * 실패 종목 수가 이 값을 넘으면 완료 집계 로그를 ERROR로 올린다.
+     * 100종목 중 몇 개 실패는 정상 범주(KIS 응답 누락, 거래정지 종목 등)이므로 그 아래는 WARN으로 둔다.
+     * ERROR는 알림 트리거이므로, 이 임계치가 곧 "사람을 부를 것과 부르지 않을 것"의 경계다.
+     */
+    private static final int FAILURE_ALERT_THRESHOLD = 20;
+
+    /***
      * 스케줄러 동작 시각: 월~금 16시(본 실행), 16시 30분 / 17시 (누락 종목 보정 실행)
      * 수행 동작: 100개 종목의 금일 종가 데이터를 DB에 저장한다.
      *          이미 수집된 종목은 existsByStockAndDate로 스킵하므로 보정 실행은 누락분만 채운다.
@@ -53,12 +60,12 @@ public class DailyPriceScheduler {
                 .orElse(false);
 
         if (isClosed){
-            log.info("[스케줄러-1] 금일({})은 휴장일이어서 스케줄러 동작 x", today);
+            log.info("금일({})은 휴장일이어서 일봉 수집을 건너뜁니다", today);
             return;
         }
 
         // 일봉 수집 스케줄러 동작 시작
-        log.info("[스케줄러-1] 일봉 수집 스케줄러 동작 시작.");
+        log.info("일봉 수집 시작");
         List<Stock> stocks = stockRepository.findAll();
         List<DailyPrice> dailyPrices = new ArrayList<>(); // DB에 Batch 단위로 집어넣기 위해 선언
 
@@ -86,21 +93,27 @@ public class DailyPriceScheduler {
                         .build()
                 );
 
-                log.info("종목명: {}, 일봉 데이터 스케줄러 동작 완료.", stock.getStockName());
+                log.info("종목 일봉 수집 완료. 종목명: {}", stock.getStockName());
 
             } catch (InterruptedException e){
               Thread.currentThread().interrupt();
-              log.warn("[스케줄러-1] 종료 신호를 받아 일봉 수집을 중단합니다. 수집 {}개, 실패 {}개", dailyPrices.size(), failedCnt);
+              log.warn("종료 신호를 받아 일봉 수집을 중단합니다. 수집 {}개, 실패 {}개", dailyPrices.size(), failedCnt);
               throw e;
 
             } catch (Exception e) {
                 failedCnt++;
-                log.warn("스케줄러 동작 중 문제 발생: {}, 종목명: {}", e, stock.getStockName());
+                log.warn("종목 일봉 수집 실패. 종목명: {}", stock.getStockName(), e);
             }
             Thread.sleep(1200); // 모의 도메인 API 호출 제한: 1초당 1건
         }
 
         dailyPriceRepository.saveAll(dailyPrices); // 정상 시행 시, 총 100개 종목 삽입
-        log.info("[스케줄러-1] 일봉 수집 스케줄러 동작 완료. 총 {}개 삽입, {}개 실패", dailyPrices.size(), failedCnt);
+
+        // 종목별 실패는 WARN으로 흘려보내되, 실패가 임계치를 넘으면 KIS 연동 자체가 흔들린 것으로 보고 ERROR로 올린다.
+        if (failedCnt > FAILURE_ALERT_THRESHOLD){
+            log.error("일봉 수집 완료. 총 {}개 삽입, {}개 실패 (실패 임계치 {}개 초과)", dailyPrices.size(), failedCnt, FAILURE_ALERT_THRESHOLD);
+        } else {
+            log.info("일봉 수집 완료. 총 {}개 삽입, {}개 실패", dailyPrices.size(), failedCnt);
+        }
     }
 }
