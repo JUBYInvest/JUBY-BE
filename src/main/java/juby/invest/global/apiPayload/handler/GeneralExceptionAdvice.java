@@ -23,7 +23,14 @@ public class GeneralExceptionAdvice {
     @ExceptionHandler(ProjectException.class)
     public ResponseEntity<ApiResponse<Void>> handleProjectException(ProjectException e){
         BaseErrorCode errorCode = e.getErrorCode();
-        log.warn("[ProjectException] code={}, message={}", errorCode.getCode(), errorCode.getMessage(), e);
+
+        // 프로젝트에서 정의한 500 에러(KIS 서버 미응답 등)는 Slack 알림을 위해 로그 레벨을 error로 정의한다.
+        if (errorCode.getStatus().is5xxServerError()){
+            log.error("[ProjectException] code={}, message={}", errorCode.getCode(), errorCode.getMessage(), e);
+        } else {
+            log.warn("[ProjectException] code={}, message={}", errorCode.getCode(), errorCode.getMessage(), e);
+        }
+
         return ResponseEntity.status(errorCode.getStatus())
                 .body(ApiResponse.onFailure(errorCode, null));
     }
