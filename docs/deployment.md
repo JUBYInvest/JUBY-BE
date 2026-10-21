@@ -306,9 +306,11 @@ dmesg -T | grep -i 'killed process'   # OOM killer 흔적
 
 **8080을 공개하지 않는다.** 외부 트래픽은 반드시 nginx(443)를 거쳐야 한다. 두 가지 이유다.
 
-1. nginx가 붙이는 `X-Real-IP` / `X-Forwarded-*` 헤더를 신뢰할 수 있는 근거가 "우회 경로가 없다"는
-   사실뿐이다. 8080이 열려 있으면 클라이언트가 직접 8080으로 치면서 이 헤더를 **위조**할 수 있고,
-   그러면 `MdcLoggingFilter`가 기록하는 `clientIp`가 거짓이 된다 (`CLAUDE.md`의 Logging 참고).
+1. nginx가 붙이는 `X-Real-IP` / `X-Request-ID` / `X-Forwarded-*` 헤더를 신뢰할 수 있는 근거가
+   "우회 경로가 없다"는 사실뿐이다. 8080이 열려 있으면 클라이언트가 직접 8080으로 치면서 이 헤더를
+   **위조**할 수 있고, 그러면 `MdcLoggingFilter`가 기록하는 `clientIp`와 `traceId`가 거짓이 된다
+   (`CLAUDE.md`의 Logging 참고). `traceId`는 특히 위조되면 모든 요청에 같은 값을 보내 요청 간 구분을
+   무력화하거나, 남의 `traceId`를 사칭해 로그를 섞을 수 있다.
 2. TLS를 우회해 평문으로 API를 호출할 수 있게 된다.
 
 더 조이려면 compose의 `ports`를 `127.0.0.1:8080:8080`으로 바꾼다. nginx가 같은 호스트에 있으므로
@@ -325,6 +327,119 @@ ssh -L 3306:127.0.0.1:3306 -i <key.pem> <user>@<host>
 # 이후 로컬 워크벤치에서 127.0.0.1:3306 접속
 ```
 
+## 로그 수집 (CloudWatch Logs)
+
+앱 컨테이너의 stdout을 Docker `awslogs` 로그 드라이버로 CloudWatch Logs에 직접 적재한다.
+컨테이너를 교체해도(`up -d app`) 이전 로그가 남는다. 설정은 `docker-compose.yml`의 `app` 서비스
+`logging` 블록에 있다 (override 파일로 분리하지 않았다 — `app` 서비스 자체가 배포 전용 정의라
+로컬에서 이 경로를 타지 않기 때문이다).
+
+```
+ client ──▶ nginx(443) ──▶ app container → stdout (ECS JSON 1줄)
+                                   │ docker log driver: awslogs
+                                   ▼
+                      CloudWatch Logs  /juby/app  (retention 14일)
+```
+
+### 인증은 EC2 인스턴스 역할로만 된다
+
+로그 드라이버는 컨테이너가 아니라 **dockerd(호스트 데몬)가 실행**한다. 따라서 `env_file: .env`에
+`AWS_ACCESS_KEY_ID` 같은 걸 넣어도 **전혀 영향이 없다.** 인스턴스 역할에 아래 권한이 있어야 한다.
+
+| 권한 | 필요한 이유 |
+|---|---|
+| `logs:CreateLogStream` | 스트림 `app` 생성 |
+| `logs:PutLogEvents` | 로그 전송 |
+| `logs:DescribeLogStreams` | 시퀀스 토큰 조회 |
+| `logs:CreateLogGroup` | compose에 `awslogs-create-group: "true"`가 있는 동안 필요 |
+
+권한이 없으면 **컨테이너가 기동 자체에 실패**한다. 드라이버 초기화 단계에서 터지기 때문에 앱 로그도
+남지 않으므로, 배포 직후 컨테이너가 안 뜨면 `docker inspect`의 상태 메시지를 먼저 볼 것.
+
+### 로그 그룹과 보존기간
+
+로그 그룹 `/juby/app`은 **retention 14일**로 지정되어 있다.
+
+> **함정**: `awslogs-create-group: "true"`로 자동 생성된 로그 그룹은 보존기간이 **"Never expire"** 가
+> 되어 요금이 무한히 누적된다. CloudWatch Logs 비용 사고 1순위 원인이고, 콘솔에 경고가 뜨지 않는다.
+> 지금은 retention이 걸린 그룹이 이미 있어서 이 옵션이 `ResourceAlreadyExists`로 무시되는 no-op이지만,
+> **`awslogs-group` 값을 바꾸면(오타·환경 추가·`tag:` 전환) Never expire 그룹이 조용히 새로 생긴다.**
+> 그룹 이름을 건드렸으면 반드시 retention을 다시 걸 것.
+
+```bash
+# 현재 보존기간 확인 (retention 필드가 없으면 Never expire다)
+aws logs describe-log-groups --region ap-northeast-2 \
+  --log-group-name-prefix /juby/app \
+  --query "logGroups[].{group:logGroupName,retention:retentionInDays,bytes:storedBytes}"
+
+# 다시 거는 법 (기존 그룹에 소급 적용된다. 그룹을 새로 만들 필요 없다)
+aws logs put-retention-policy --region ap-northeast-2 \
+  --log-group-name /juby/app --retention-in-days 14
+```
+
+### ⚠️ `docker logs`가 더 이상 동작하지 않는다
+
+`awslogs`는 기본 `json-file` 드라이버를 **대체**하므로, EC2에서 `sudo docker logs app`은 빈 출력이 된다.
+배포 직후 기동 실패를 확인하던 수단이 사라졌다. 대체 수단은 다음 세 가지다.
+
+```bash
+# 1) 컨테이너가 떴는지 / 왜 죽었는지 (로그 드라이버와 무관하게 동작)
+sudo docker inspect app --format '{{.State.Status}} {{.State.ExitCode}} {{.State.Error}}'
+
+# 2) 실시간 로그 tail
+aws logs tail /juby/app --follow --region ap-northeast-2
+
+# 3) 특정 요청의 전 로그 복원 (traceId 조인)
+aws logs start-query --region ap-northeast-2 \
+  --log-group-name /juby/app \
+  --start-time $(date -d '30 min ago' +%s) --end-time $(date +%s) \
+  --query-string 'fields @timestamp, message | filter traceId = "<ID>" | sort @timestamp asc'
+```
+
+`mode: non-blocking`은 CloudWatch API가 느려지거나 끊겼을 때 **로그를 버리고 앱을 계속 돌리기 위한
+것**이다. 기본값 `blocking`이면 stdout 쓰기가 막혀 애플리케이션 스레드가 그대로 멈춘다
+(로그 유실 < 서비스 중단). 즉 **로그가 일부 비어 있을 수 있다는 게 정상 동작**이다.
+
+### nginx access log와 traceId 맞추기
+
+nginx가 `X-Request-ID: $request_id`를 넘기고 앱이 그 값을 `traceId`로 쓰므로, **nginx access log에도
+`$request_id`를 찍으면 같은 요청을 양쪽에서 같은 키로 조회할 수 있다.** 기본 `combined` 포맷에는
+없으니 추가해야 한다.
+
+```nginx
+log_format juby '$remote_addr - $request_id "$request" '
+                '$status $body_bytes_sent '
+                'rt=$request_time urt=$upstream_response_time';
+
+access_log /var/log/nginx/access.log juby;
+```
+
+이게 있어야 진단되는 것들:
+
+| nginx | 앱 | 실제 상황 |
+|---|---|---|
+| `502` | 로그 없음 | 앱이 죽었거나(OOM) 배포 중 기동 전 — 앱 로그에는 흔적이 없다 |
+| `504` | `200 (75000ms)` | 앱은 성공했다고 믿지만 사용자는 실패를 봤다 (KIS/OpenAI 지연) |
+| `499` | `200 (12000ms)` | 사용자가 기다리다 떠났다. 앱 지표상으론 정상 |
+| `rt=3.0` | `latencyMs=30` | 코드가 아니라 큐잉·커넥션·느린 클라이언트 전송 문제 |
+
+`$request_time`(요청 수신 ~ 응답 전송 완료)과 앱의 `latencyMs`(필터 구간) 차이가 곧 앱 바깥에서
+쓴 시간이다. 설정 확인은 `sudo nginx -T | grep -nE 'log_format|access_log|request_id'`.
+
+> 운영 로그에 **8자 traceId**가 보이면 nginx가 세팅한 값(32자 hex)이 아니라 앱의 폴백이 탄 것이고,
+> 그건 **nginx를 우회해 8080으로 직접 들어온 요청**이라는 뜻이다. `clientIp=UNKNOWN`과 같은
+> 이상 징후다 (보안 그룹상 나타나지 않아야 정상). 로컬은 nginx가 없으므로 8자가 정상이다.
+
+### 로컬에서는 `app` 서비스를 띄우지 않는다
+
+`docker-compose.yml`의 `app` 서비스는 이미지·`.env`·`SPRING_PROFILES_ACTIVE: dev`가 모두 배포 전용이라
+로컬에서 기동할 수 있는 구성이 아니다. 로컬은 MySQL만 컨테이너로 띄우고 앱은 `./gradlew bootRun`으로
+돌린다 (`local` 프로파일 = 평문 로그, awslogs 경로를 타지 않음).
+
+```bash
+docker compose up -d mysql     # 서비스 이름 없이 up -d 하면 app까지 올리려다 실패한다
+```
+
 ## 운영 메모
 
 - **재부팅 순서**: 앱과 MySQL이 동시에 뜨면서 앱이 먼저 DB에 붙으려다 실패할 수
@@ -335,7 +450,10 @@ ssh -L 3306:127.0.0.1:3306 -i <key.pem> <user>@<host>
   `docker compose down -v`의 `-v`는 **볼륨을 지운다**. 절대 쓰지 말 것.
 - **HTTPS 구성 (완료)**: EC2 호스트의 nginx가 443을 받아 TLS를 종료하고 앱 컨테이너의
   8080으로 평문 전달한다. nginx는 `X-Forwarded-Proto` / `X-Forwarded-Host` / `X-Real-IP` /
-  `X-Forwarded-For`를 붙여 넘긴다.
+  `X-Forwarded-For` / `X-Request-ID`를 붙여 넘긴다. 뒤 두 개는 **덮어쓰기**라서 신뢰할 수 있다
+  (`X-Real-IP = $remote_addr`, `X-Request-ID = $request_id`). `X-Forwarded-For`는
+  `$proxy_add_x_forwarded_for`로 **append**되어 클라이언트가 보낸 가짜 값이 맨 앞에 남으므로
+  로깅에 쓰지 않는다 — 자세한 내용은 아래 "로그 수집" 절과 `CLAUDE.md`의 Logging 참고.
 - **알려진 증상 — Swagger UI 서버 주소가 `http://`로 보인다**: nginx가 헤더를 보내는 것만으로는
   부족하고, 앱이 그 헤더를 **반영하려면** `server.forward-headers-strategy: FRAMEWORK`가 필요하다.
   현재 미설정(=`NONE`)이라 앱은 자기가 `http://localhost:8080`으로 서비스된다고 믿고,
