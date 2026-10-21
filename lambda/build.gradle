@@ -1,0 +1,54 @@
+// CloudWatch Logs ERROR 로그를 슬랙으로 보내는 Lambda의 배포 패키지를 만든다.
+//
+// 앱(invest)과는 완전히 분리된 빌드다. 루트 settings.gradle에 include되어 있지 않으므로
+// `./gradlew build`(앱)는 이 디렉터리를 보지 않는다. 여기서 빌드할 때는:
+//
+//     cd lambda
+//     gradle buildZip
+//
+// 산출물: build/distributions/juby-error-notifier.zip  → Lambda 콘솔에 업로드
+
+plugins {
+    id 'java'
+}
+
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    // 소스에 한글 주석·문자열이 있다. 플랫폼 기본 인코딩에 맡기지 않는다.
+    options.encoding = 'UTF-8'
+}
+
+repositories { mavenCentral() }
+
+dependencies {
+    // 핸들러 인터페이스(RequestHandler, Context). ~15KB.
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.3'
+    // ECS JSON 파싱 + Block Kit 조립.
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    // AWS SDK는 쓰지 않는다 — gzip/base64/HTTP는 JDK에 있고, SSM은
+    // Parameters and Secrets Lambda Extension(localhost HTTP)으로 읽는다.
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+// AWS가 안내하는 Java Lambda 배포 패키지 레이아웃:
+// 클래스는 zip 루트에, 의존성 jar는 lib/ 아래. Lambda가 /var/task/lib/* 를 클래스패스에 넣는다.
+// (Spring Boot의 fat jar 레이아웃은 Lambda가 쓰지 못하므로 shadowJar 대신 이 방식을 쓴다.)
+tasks.register('buildZip', Zip) {
+    // compileJava 태스크를 직접 from으로 쓰면 Gradle의 증분 컴파일 메타데이터
+    // (previous-compilation-data.bin)까지 패키지에 섞인다. sourceSets.main.output은
+    // 클래스·리소스 디렉터리만 가리키고 태스크 의존성도 함께 들고 온다.
+    from sourceSets.main.output
+    into('lib') {
+        from configurations.runtimeClasspath
+    }
+}

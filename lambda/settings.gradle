@@ -1,0 +1,3 @@
+// 이 파일이 있기 때문에 lambda/ 는 독립된 Gradle 빌드 루트가 된다.
+// 루트 settings.gradle에 include 하지 않으므로 앱의 `./gradlew build`는 여기를 완전히 무시한다.
+rootProject.name = 'juby-error-notifier'
