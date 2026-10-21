@@ -3,6 +3,8 @@ spring:
     name: invest
   profiles:
     active: local
+  config:
+    import: optional:file:.env[.properties]
 
   # 사용할 DB
   datasource:
@@ -62,6 +64,7 @@ spring:
       chat:
         options:
           model: gpt-4o-mini
+
 kis:
   mock:
     base-url: "https://openapivts.koreainvestment.com:29443"
