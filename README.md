@@ -111,11 +111,14 @@ juby.invest
 - JDK 21
 - Docker / Docker Compose
 
-### 2. 로컬 인프라 실행 (MySQL, Redis)
+### 2. 로컬 인프라 실행 (MySQL)
 
 ```bash
-docker compose up -d
+docker compose up -d mysql
 ```
+
+> 서비스 이름 없이 `docker compose up -d`를 실행하면 배포 전용인 `app` 서비스까지 올리려다
+> 실패합니다. `app`은 CI가 푸시한 이미지와 EC2의 `.env`를 전제로 하므로 로컬 대상이 아닙니다.
 
 ### 3. 애플리케이션 실행
 
