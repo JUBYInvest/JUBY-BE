@@ -35,7 +35,9 @@ the deploy-only `app` service (private image + EC2 `.env`) and fails:
 docker compose up -d mysql
 ```
 
-The app requires a `.env` file at the repo root (loaded by the runtime/Docker, see `.github/workflows/dev-deploy.yml` and `Dockerfile`) providing `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `AES_128`, OAuth client id/secrets (`GOOGLE_*`, `KAKAO_*`, `NAVER_*`), `KIS_MOCK_*`/`KIS_REAL_*` app key/secret, `OPEN_API_KEY`, and `PINECONE_APP_KEY` — see `src/main/resources/application.yaml` for the full list of referenced env vars.
+The app requires a `.env` file at the repo root providing `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `AES_128`, OAuth client id/secrets (`GOOGLE_*`, `KAKAO_*`, `NAVER_*`), `KIS_MOCK_*`/`KIS_REAL_*` app key/secret, `OPEN_API_KEY`, and `PINECONE_APP_KEY`. Copy `.env.example` and fill it in; `src/main/resources/application.yaml` is the full list of referenced vars.
+
+`application.yaml` imports it itself via `spring.config.import: optional:file:.env[.properties]`, so `bootRun`, the IDE, and `java -jar` all pick it up with no shell exports — but **it is parsed as a `.properties` file, not shell dotenv**. Consequences that bite: `#` only starts a comment at the start of a line (`KEY=v # note` makes the value `v # note`), quotes are kept literally, `\` is an escape and disappears, and the file is read as ISO-8859-1 so non-ASCII values are mangled. Docker Compose reads the same file with its own parser (`env_file`, plus `${...}` interpolation for the `mysql` service), so keep values to the intersection of both: no quotes, no trailing comments, ASCII only. The lookup is relative to the working directory, which is why the EC2 container (CWD `/`, no `.env`) relies on Compose's `env_file` instead — real env vars outrank imported config files. CI writes EC2's `.env` from the `ENV_FILE` secret (see `.github/workflows/dev-deploy.yml`).
 
 CI (`.github/workflows/dev-deploy.yml`) triggers on PRs merged into `dev`: builds with Gradle, builds/pushes a Docker image, and deploys to EC2 over SSH with `SPRING_PROFILES_ACTIVE=dev`.
 

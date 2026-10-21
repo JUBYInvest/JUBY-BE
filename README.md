@@ -135,36 +135,28 @@ juby.invest
 
 ### 2. 환경 변수 (`.env`) 작성
 
-저장소 루트에 `.env`를 만듭니다. `.gitignore` 대상이므로 커밋되지 않습니다.
+[`.env.example`](.env.example)을 복사해 값을 채웁니다. `.env`는 `.gitignore` 대상이라 커밋되지 않습니다.
 
-```dotenv
-# DB — DB_URL의 호스트는 로컬에서 127.0.0.1, 배포 환경에서 mysql(컨테이너명)
-DB_URL=jdbc:mysql://127.0.0.1:3306/juby?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-DB_USERNAME=
-DB_PASSWORD=
-MYSQL_ROOT_PASSWORD=
-MYSQL_DATABASE=juby
-
-# 보안
-JWT_SECRET=          # JWT 서명 키
-AES_128=             # KIS 토큰 암호화 키
-
-# 소셜 로그인
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-KAKAO_CLIENT_ID=
-KAKAO_CLIENT_SECRET=
-NAVER_CLIENT_ID=     # 소셜 로그인과 네이버 뉴스 검색 API가 같은 값을 사용합니다
-NAVER_CLIENT_SECRET=
-
-# 외부 API
-KIS_MOCK_APP_KEY=
-KIS_MOCK_APP_SECRET=
-KIS_REAL_APP_KEY=
-KIS_REAL_APP_SECRET=
-OPEN_API_KEY=        # OpenAI API 키
-PINECONE_APP_KEY=
+```bash
+cp .env.example .env
 ```
+
+애플리케이션은 `application.yaml`의 `spring.config.import: optional:file:.env[.properties]`로
+`.env`를 프로퍼티 소스로 직접 읽습니다. 따라서 `bootRun` / IDE 실행 / `java -jar` 어느 쪽이든
+셸에 환경 변수를 따로 내보낼 필요가 없습니다. (`optional:`이라 파일이 없어도 기동은 막히지
+않습니다 — 대신 `${DB_URL}` 같은 플레이스홀더를 해석하지 못해 실패합니다.)
+
+> **`.env` 작성 규칙**: 이 파일은 Spring Boot(`.properties` 형식)와 Docker Compose가 **각각 다른
+> 파서로** 읽습니다. 양쪽에서 같은 값으로 해석되도록 아래를 지켜야 합니다.
+>
+> | 하지 말 것 | 이유 |
+> | --- | --- |
+> | `KEY=값 # 설명` | properties에서 `#`은 줄 맨 앞에서만 주석입니다. 값이 `값 # 설명`이 됩니다 |
+> | `KEY="값"` | properties는 따옴표를 벗기지 않아 값에 그대로 포함됩니다 |
+> | 값에 `\` | properties의 이스케이프 문자로 먹혀 사라집니다 |
+> | 값에 한글·비ASCII | properties는 ISO-8859-1로 읽어 깨집니다 |
+>
+> 주석은 항상 독립된 줄에 씁니다. `.env.example`이 이 규칙을 지킨 형태입니다.
 
 ### 3. 로컬 인프라 실행 (MySQL)
 
@@ -183,9 +175,10 @@ docker compose up -d mysql
 
 기본 활성 프로필은 `local`이며 `http://localhost:8080` 에서 실행됩니다. 로그는 사람이 읽는 평문입니다.
 
-> **주의**: `docker compose`는 `.env`를 자동으로 읽지만 `bootRun`은 읽지 않습니다.
-> 위 변수들이 셸(또는 IDE 실행 구성)의 환경 변수로 들어가 있어야 기동됩니다.
-> 예: `export $(grep -v '^#' .env | xargs) && ./gradlew bootRun`
+> `.env`는 **실행 디렉터리 기준**으로 찾습니다. `bootRun`과 IDE 실행은 저장소 루트에서 돌아가므로
+> 그대로 읽히고, `java -jar`로 띄울 때는 `.env`가 있는 디렉터리에서 실행해야 합니다.
+> EC2 배포본은 컨테이너 작업 디렉터리에 `.env`가 없고, compose의 `env_file`이 넣어 준
+> 환경 변수로 동작합니다 (환경 변수가 `.env` 파일보다 우선순위가 높습니다).
 
 프런트엔드는 `http://localhost:5173`을 전제로 CORS와 OAuth2 리다이렉트가 설정되어 있습니다.
 
