@@ -24,7 +24,6 @@ import java.util.*;
 public class PineconeService {
 
     private final Index pineconeConfig;
-    private final PineconeConverter pineconeConverter;
     private final NewsService newsService;
     private final StockRepository stockRepository;
 
