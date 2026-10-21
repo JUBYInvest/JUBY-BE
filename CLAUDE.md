@@ -27,10 +27,12 @@ Build tool is Gradle (wrapper included). Run all commands from the repo root.
 ./gradlew bootRun
 ```
 
-Local infra (MySQL 8.0 on :3306, Redis 7 on :6379) is provided via `docker-compose.yml`:
+Local infra (MySQL 8.0 on 127.0.0.1:3306) is provided via `docker-compose.yml`. There is no Redis
+service — pass the service name explicitly, because a bare `docker compose up -d` also tries to start
+the deploy-only `app` service (private image + EC2 `.env`) and fails:
 
 ```powershell
-docker compose up -d
+docker compose up -d mysql
 ```
 
 The app requires a `.env` file at the repo root (loaded by the runtime/Docker, see `.github/workflows/dev-deploy.yml` and `Dockerfile`) providing `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `AES_128`, OAuth client id/secrets (`GOOGLE_*`, `KAKAO_*`, `NAVER_*`), `KIS_MOCK_*`/`KIS_REAL_*` app key/secret, `OPEN_API_KEY`, and `PINECONE_APP_KEY` — see `src/main/resources/application.yaml` for the full list of referenced env vars.

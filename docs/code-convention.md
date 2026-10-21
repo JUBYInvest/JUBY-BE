@@ -150,7 +150,7 @@ public class ChangeMemberInfo {
 
 ## 7. 커밋 / 브랜치 컨벤션
 
-- 브랜치: `feat/기능명` (자세한 Git Flow는 [README.md](../README.md#깃-플로우) 참고)
+- 브랜치: `<type>/<작업명>/#<이슈번호>` (예: `feature/like-stock/#87`). 자세한 Git Flow는 [README.md](../README.md#-깃-플로우) 참고
 - 커밋 메시지: `<type>: <한글 설명>` 형태를 사용합니다. (`feat:`, `refactor:`, `chore:`, `fix:` 등)
   예: `feat: 나의 투자성향 테스트 API 구현`, `refactor: 생일연도 정보를 추가로 받아 DB에 저장`
 
