@@ -34,4 +34,13 @@ public class EmaStrategy implements BacktestStrategy{
         log.info("EMA 교차 전략 실행");
         return new BaseStrategy("EMA 교차 전략", breakout, pullback);
     }
+
+    /***
+     * TODO(#109 후속 이슈): EMA 5·20 lookback에 맞는 워밍업 봉 수를 정의한다.
+     * 지금은 0을 반환해 기존 동작(요청 구간만으로 지표 계산)을 그대로 유지한다.
+     */
+    @Override
+    public int warmupBars() {
+        return 0;
+    }
 }
