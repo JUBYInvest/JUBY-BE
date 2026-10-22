@@ -52,4 +52,18 @@ public class BacktestController {
 
         return ApiResponse.onSuccess(successCode, backtestPresetService.getPresetOptions());
     }
+
+    @Operation(summary = "백테스트 즉석 실행",
+            description = "프리셋 배치를 기다리지 않고 요청 시점에 백테스트를 직접 실행한다. " +
+                    "종료일은 해당 종목의 최신 일봉일이고, 시작일은 기간 프리셋으로 역산한다. " +
+                    "결과를 DB에 저장하지 않으며, 전략별 최소 허용 기간 제약도 적용하지 않는다.")
+    @GetMapping("/run")
+    public ApiResponse<BacktestResDto.QuantScoringResponse> runBacktest(
+            @Valid @ModelAttribute BacktestReqDto.ReqInfo dto){
+
+        BaseSuccessCode successCode = BacktestSuccessCode.OK;
+
+        return ApiResponse.onSuccess(successCode,
+                backtestPresetService.runNow(dto.stockCode(), dto.investType(), dto.period()));
+    }
 }
