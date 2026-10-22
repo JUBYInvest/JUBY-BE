@@ -2,6 +2,7 @@ package juby.invest.domain.backtest.converter;
 
 import juby.invest.domain.backtest.dto.BacktestResDto;
 import juby.invest.domain.backtest.indicator.*;
+import juby.invest.domain.stock.entity.Stock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -27,7 +28,7 @@ public class AnalysisCriterionConverter {
     private final ScoreCalculator scoreCalculator;
 
     public BacktestResDto.QuantScoringResponse converter(
-            String stockCode, int investType, BarSeries series, TradingRecord record){
+            Stock stock, int investType, BarSeries series, TradingRecord record){
 
         BacktestResDto.QuantScoringResponse.Stable stable = stableIndicator.indicate(series, record);
         BacktestResDto.QuantScoringResponse.Profit profit = profitIndicator.indicate(series, record);
@@ -49,7 +50,7 @@ public class AnalysisCriterionConverter {
         log.info("최종 적합도 점수 = {}", finalScore);
 
         return BacktestResDto.QuantScoringResponse.builder()
-                .stockCode(stockCode)
+                .stockCode(stock.getStockCode())
                 .investType(investType)
                 .finalScore(finalScore)
                 .stable(stable)

@@ -5,7 +5,6 @@ import juby.invest.domain.backtest.exception.BacktestException;
 import juby.invest.domain.backtest.exception.code.BacktestErrorCode;
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
-import juby.invest.domain.stock.exception.code.StockErrorCode;
 import juby.invest.domain.stock.repository.DailyPriceRepository;
 import juby.invest.domain.backtest.converter.AnalysisCriterionConverter;
 import juby.invest.domain.backtest.converter.BarSeriesConverter;
@@ -20,7 +19,6 @@ import org.ta4j.core.Strategy;
 import org.ta4j.core.TradingRecord;
 import org.ta4j.core.backtest.BarSeriesManager;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -31,14 +29,13 @@ import java.util.Map;
 public class BacktestService {
 
     private final BarSeriesConverter barSeriesConverter;
-    private final StockRepository stockRepository;
     private final DailyPriceRepository dailyPriceRepository;
     private final Map<String, BacktestStrategy> strategyMap;
     private final AnalysisCriterionConverter analysisCriterionConverter;
 
     /***
-     * 전달받은 종목코드, 투자성향, 시작일, 종료일을 기준으로 백테스트 전략을 수행한다.
-     * @param stockCode 종목 코드
+     * 전달받은 종목, 투자성향, 시작일, 종료일을 기준으로 백테스트 전략을 수행한다.
+     * @param stock 종목
      * @param investType 투자 성향 (1~5)
      * @param startDate 시작일
      * @param endDate 종료일
@@ -46,10 +43,7 @@ public class BacktestService {
      */
     @Transactional
     public BacktestResDto.QuantScoringResponse runStrategy(
-            String stockCode, int investType, LocalDate startDate, LocalDate endDate){
-
-        Stock stock = stockRepository.findById(stockCode)
-                .orElseThrow(() -> new BacktestException(BacktestErrorCode.STOCKCODE_NOT_FOUND));
+            Stock stock, int investType, LocalDate startDate, LocalDate endDate){
 
         // List<DailyPrice -> ta4j의 Barseries 변환
         List<DailyPrice> dailyPriceList = dailyPriceRepository.findByStockAndDateBetweenOrderByDateAsc(stock, startDate, endDate);
@@ -58,7 +52,7 @@ public class BacktestService {
             throw new BacktestException(BacktestErrorCode.DATE_NOT_FOUND);
         }
 
-        BarSeries series = barSeriesConverter.barSeriesConverter(dailyPriceList, stockCode);
+        BarSeries series = barSeriesConverter.barSeriesConverter(dailyPriceList, stock.getStockCode());
 
         // 실행할 전략명 찾기
         String strategyName = switch (investType) {
@@ -86,6 +80,6 @@ public class BacktestService {
         log.info("포지션 내역: {}", record.getPositions());
 
         // 평가 지표 산출 (안정성, 수익성, 효율성, 성장성)
-        return analysisCriterionConverter.converter(stockCode, investType, series, record);
+        return analysisCriterionConverter.converter(stock, investType, series, record);
     }
 }

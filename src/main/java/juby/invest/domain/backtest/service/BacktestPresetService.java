@@ -148,7 +148,7 @@ public class BacktestPresetService {
         LocalDate startDate = period.calculateStartDate(latestDate);
 
         BacktestResDto.QuantScoringResponse result =
-                backtestService.runStrategy(stock.getStockCode(), investType, startDate, latestDate);
+                backtestService.runStrategy(stock, investType, startDate, latestDate);
 
         BacktestPresetResult entity = presetRepository
                 .findByStock_StockCodeAndInvestTypeAndPeriod(stock.getStockCode(), investType, period)
