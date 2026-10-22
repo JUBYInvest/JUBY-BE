@@ -29,7 +29,10 @@ public enum BacktestErrorCode implements BaseErrorCode {
             "해당 투자성향 전략에서는 지원하지 않는 기간 프리셋입니다. 지표 계산에 필요한 최소 기간 이상을 선택해주세요."),
     PRESET_NOT_FOUND(HttpStatus.NOT_FOUND,
             "BACKTEST404_5",
-            "아직 계산되지 않은 프리셋입니다. 잠시 후 다시 시도해주세요.")
+            "아직 계산되지 않은 프리셋입니다. 잠시 후 다시 시도해주세요."),
+    WARMUP_DATA_NOT_ENOUGH(HttpStatus.NOT_FOUND,
+            "BACKTEST404_6",
+            "지표 계산에 필요한 시작일 이전 일봉 데이터가 부족합니다. 더 늦은 시작일을 선택해주세요.")
     ;
 
     private final HttpStatus status;
