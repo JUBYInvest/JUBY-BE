@@ -18,14 +18,15 @@ public class ProfitIndicator {
     /***
      *  수익성 축
      *  누적수익률, CAGR(연평균 수익률), 평균 거래 수익률
+     *  @param evalStartIndex 평가 대상(사용자 요청) 구간의 첫 봉 index. 그 앞은 지표 계산 전용 워밍업 구간이다.
      */
-    public BacktestResDto.QuantScoringResponse.Profit indicate(BarSeries series, TradingRecord record){
+    public BacktestResDto.QuantScoringResponse.Profit indicate(BarSeries series, TradingRecord record, int evalStartIndex){
 
         // 누적수익률
         Num totalReturn = new NetReturnCriterion().calculate(series, record).minus(series.numFactory().numOf(1));
 
         // CAGR
-        Double cagr = calculateAnnualReturn(series, record, totalReturn.doubleValue());
+        Double cagr = calculateAnnualReturn(series, totalReturn.doubleValue(), evalStartIndex);
 
         // 평균 거래 수익률
         Num avgTradeReturn = calculateAvgTradeReturn(series, record);
@@ -42,9 +43,10 @@ public class ProfitIndicator {
      *  복리 방식 (수익금이 다시 재투자된다.)
      *  252 = 주식 시장 개장 총일
      */
-    private Double calculateAnnualReturn(BarSeries series, TradingRecord record, Double totalReturn){
+    private Double calculateAnnualReturn(BarSeries series, Double totalReturn, int evalStartIndex){
 
-        int barCount = series.getBarCount();
+        // 워밍업 봉은 평가 대상이 아니므로 요청 구간의 봉 수만 분모로 쓴다.
+        int barCount = series.getEndIndex() - evalStartIndex + 1;
 
         return Math.pow(1 + totalReturn, 252.0 / barCount) - 1;
     }

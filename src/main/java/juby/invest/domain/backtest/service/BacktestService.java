@@ -92,8 +92,8 @@ public class BacktestService {
         log.info("체결된 포지션 개수: {}", record.getPositionCount());
         log.info("포지션 내역: {}", record.getPositions());
 
-        // 평가 지표 산출 (안정성, 수익성, 효율성, 성장성)
-        return analysisCriterionConverter.converter(stock, investType, series, record);
+        // 평가 지표 산출 (안정성, 수익성, 효율성, 성장성) - 요청 구간 기준
+        return analysisCriterionConverter.converter(stock, investType, series, record, evalStartIndex);
     }
 
     /***
