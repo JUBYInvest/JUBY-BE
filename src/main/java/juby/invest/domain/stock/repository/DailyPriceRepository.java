@@ -2,6 +2,7 @@ package juby.invest.domain.stock.repository;
 
 import juby.invest.domain.stock.entity.DailyPrice;
 import juby.invest.domain.stock.entity.Stock;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -25,6 +26,9 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
     // 챗봇 주가 요약용: 종목의 최근 20거래일 일봉 (최신순)
     List<DailyPrice> findTop20ByStockOrderByDateDesc(Stock stock);
+
+    // 백테스트 지표 워밍업용: 기준일 이전 N거래일 일봉 (최신순)
+    List<DailyPrice> findByStockAndDateLessThanOrderByDateDesc(Stock stock, LocalDate date, Limit limit);
 
     @Query("""
         select max(dp.date)

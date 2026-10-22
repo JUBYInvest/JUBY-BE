@@ -143,12 +143,38 @@ public class BacktestPresetService {
         log.info("[백테스트 프리셋 배치] 완료. 성공: {}건, 스킵: {}건", successCount, skipCount);
     }
 
+    /***
+     * 함수 기능: 새벽 프리셋 배치를 기다리지 않고 요청 시점에 백테스트를 직접 실행한다.
+     *           recalculateOne과 동일하게 종목의 최신 일봉일을 종료일로 삼고 기간 프리셋으로
+     *           시작일을 역산하므로, DB에 적재된 프리셋 값과 바로 대조할 수 있다.
+     *           결과를 저장하지 않고, 최소 허용 기간(MIN_PERIOD) 제약도 적용하지 않는다.
+     */
+    public BacktestResDto.QuantScoringResponse runNow(String stockCode, int investType, BacktestPeriod period) {
+
+        Stock stock = stockRepository.findById(stockCode)
+                .orElseThrow(() -> new BacktestException(BacktestErrorCode.STOCKCODE_NOT_FOUND));
+
+        // 종목의 최신 일봉일을 종료일로 삼는다.
+        LocalDate endDate = dailyPriceRepository.findMaxDateByStock(stock);
+
+        if (endDate == null) {
+            throw new BacktestException(BacktestErrorCode.DATE_NOT_FOUND);
+        }
+
+        LocalDate startDate = period.calculateStartDate(endDate);
+
+        log.info("[백테스트 즉석 실행] 종목명: {}, 투자성향: {}, 기간: {} ({} ~ {})",
+                stock.getStockName(), investType, period, startDate, endDate);
+
+        return backtestService.runStrategy(stock, investType, startDate, endDate);
+    }
+
     private void recalculateOne(Stock stock, int investType, BacktestPeriod period, LocalDate latestDate) {
 
         LocalDate startDate = period.calculateStartDate(latestDate);
 
         BacktestResDto.QuantScoringResponse result =
-                backtestService.runStrategy(stock.getStockCode(), investType, startDate, latestDate);
+                backtestService.runStrategy(stock, investType, startDate, latestDate);
 
         BacktestPresetResult entity = presetRepository
                 .findByStock_StockCodeAndInvestTypeAndPeriod(stock.getStockCode(), investType, period)

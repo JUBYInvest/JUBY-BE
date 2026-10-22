@@ -36,4 +36,12 @@ public class SmaStrategy implements BacktestStrategy{
 
         return new BaseStrategy("SMA 교차 전략", entryRule, exitRule);
     }
+
+    /***
+     * 워밍업: 60일 이평선이 완전해진 "다음" 봉부터 교차 판정이 가능하므로 60거래일이 필요하다.
+     */
+    @Override
+    public int warmupBars() {
+        return 60;
+    }
 }

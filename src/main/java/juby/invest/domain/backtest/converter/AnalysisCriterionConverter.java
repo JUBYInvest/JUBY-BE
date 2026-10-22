@@ -2,6 +2,7 @@ package juby.invest.domain.backtest.converter;
 
 import juby.invest.domain.backtest.dto.BacktestResDto;
 import juby.invest.domain.backtest.indicator.*;
+import juby.invest.domain.stock.entity.Stock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -26,11 +27,21 @@ public class AnalysisCriterionConverter {
     private final StableIndicator stableIndicator;
     private final ScoreCalculator scoreCalculator;
 
+    /***
+     * 함수 기능: 전략 실행 후 매매 기록을 바탕으로, 4가지 축(안정석, 수익성, 효율성, 성장성)에 맞게
+     *           점수를 수치화한다. 그리고 4가지 점수를 유형에 맞게 가중치를 두어 최종 적합도 점수를 반환한다.
+     * @param stock 종목
+     * @param investType 투자 성향
+     * @param series 워밍업 + 전략 실행 구간 일봉 데이터 지표
+     * @param record 전략에 따른 매매 기록
+     * @param evalStartIndex 전략 실행 시작 인덱스
+     * @return QuantScoringResponse 최종 적합도
+     */
     public BacktestResDto.QuantScoringResponse converter(
-            String stockCode, int investType, BarSeries series, TradingRecord record){
+            Stock stock, int investType, BarSeries series, TradingRecord record, int evalStartIndex){
 
-        BacktestResDto.QuantScoringResponse.Stable stable = stableIndicator.indicate(series, record);
-        BacktestResDto.QuantScoringResponse.Profit profit = profitIndicator.indicate(series, record);
+        BacktestResDto.QuantScoringResponse.Stable stable = stableIndicator.indicate(series, record, evalStartIndex);
+        BacktestResDto.QuantScoringResponse.Profit profit = profitIndicator.indicate(series, record, evalStartIndex);
         BacktestResDto.QuantScoringResponse.Effect effect = effectIndicator.indicate(record, profit, stable);
         BacktestResDto.QuantScoringResponse.Growth growth = growthIndicator.indicate(series, record);
 
@@ -49,7 +60,7 @@ public class AnalysisCriterionConverter {
         log.info("최종 적합도 점수 = {}", finalScore);
 
         return BacktestResDto.QuantScoringResponse.builder()
-                .stockCode(stockCode)
+                .stockCode(stock.getStockCode())
                 .investType(investType)
                 .finalScore(finalScore)
                 .stable(stable)
