@@ -16,11 +16,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.ta4j.core.BarSeries;
+import org.ta4j.core.Position;
 import org.ta4j.core.Strategy;
 import org.ta4j.core.TradingRecord;
 import org.ta4j.core.backtest.BarSeriesManager;
+import org.ta4j.core.num.Num;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -89,11 +92,41 @@ public class BacktestService {
         BarSeriesManager manager = new BarSeriesManager(series);
         TradingRecord record = manager.run(strategy, evalStartIndex, series.getEndIndex());
 
-        log.info("체결된 포지션 개수: {}", record.getPositionCount());
-        log.info("포지션 내역: {}", record.getPositions());
+        logPositions(series, record);
 
         // 평가 지표 산출 (안정성, 수익성, 효율성, 성장성) - 요청 구간 기준
         return analysisCriterionConverter.converter(stock, investType, series, record, evalStartIndex);
+    }
+
+    /***
+     * 함수 기능: 체결 내역을 로그로 남긴다.
+     *           TradingRecord는 BarSeries의 index만 들고 있어 체결 시점이 드러나지 않으므로
+     *           index를 실제 거래일로 되돌려 찍는다.
+     */
+    private void logPositions(BarSeries series, TradingRecord record){
+
+        log.info("체결된 포지션 개수: {}", record.getPositionCount());
+
+        for (Position position : record.getPositions()) {
+            Num entryPrice = position.getEntry().getNetPrice();
+            Num exitPrice = position.getExit().getNetPrice();
+            Num returnRate = exitPrice.minus(entryPrice).dividedBy(entryPrice)
+                    .multipliedBy(series.numFactory().numOf(100));
+
+            log.info("체결 내역 - 매수 {} ({}) -> 매도 {} ({}), 수익률 {}%",
+                    tradeDate(series, position.getEntry().getIndex()), entryPrice,
+                    tradeDate(series, position.getExit().getIndex()), exitPrice,
+                    returnRate);
+        }
+    }
+
+    /***
+     * 함수 기능: BarSeries의 index를 해당 봉의 거래일로 되돌린다.
+     *           봉의 종료 시각을 15:30 KST로 넣었으므로 같은 시간대로 되돌려 읽는다.
+     */
+    private LocalDate tradeDate(BarSeries series, int index){
+
+        return LocalDate.ofInstant(series.getBar(index).getEndTime(), ZoneId.of("Asia/Seoul"));
     }
 
     /***
