@@ -78,11 +78,11 @@ public class BreakoutStrategy implements BacktestStrategy{
 
             return closePrice1.isLessThanOrEqual(stopPrice);
         };
-        Rule exitRule = exitRule_1.and(exitRule_2);
+        Rule exitRule = exitRule_1.or(exitRule_2);
 
         return new BaseStrategy("돌파 전략", entryRule, exitRule);
     }
-    
+
     @Override
     public int warmupBars() {
         return 100;
