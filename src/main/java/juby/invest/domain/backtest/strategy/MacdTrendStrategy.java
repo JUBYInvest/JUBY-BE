@@ -35,12 +35,8 @@ public class MacdTrendStrategy implements BacktestStrategy{
         return new BaseStrategy("Macd 추세추종 전략", entryRule, exitRule);
     }
 
-    /***
-     * TODO(#109 후속 이슈): MACD 12·26·9 lookback에 맞는 워밍업 봉 수를 정의한다.
-     * 지금은 0을 반환해 기존 동작(요청 구간만으로 지표 계산)을 그대로 유지한다.
-     */
     @Override
     public int warmupBars() {
-        return 0;
+        return 150;
     }
 }
