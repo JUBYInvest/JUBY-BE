@@ -37,26 +37,17 @@ public class BollingerBandStrategy implements BacktestStrategy{
         BollingerBandsLowerIndicator lower = new BollingerBandsLowerIndicator(middle, sd);
 
         // 4. 규칙 설정
-        // 진입: 종가가 상단을 '상향' 돌파할 때
+        // 진입: 종가가 볼린저 밴드 상단을 '상향' 돌파할 때
         Rule entryRule = new CrossedUpIndicatorRule(closePrice, upper);
 
-        // 탈출: 종가가 '중심선'을 '하향' 돌파할 때
+        // 탈출: 종가가 볼린저 밴드 하단을 '하향' 돌파할 때
         Rule exitRule = new CrossedDownIndicatorRule(closePrice, lower);
 
-        Strategy strategy = new BaseStrategy("볼린저 밴드 돌파 전략", entryRule, exitRule);
-
-        // 지표가 계산될 수 있도록 최소 20봉 이상의 여유
-        strategy.setUnstableBars(20);
-
-        return strategy;
+        return new BaseStrategy("볼린저 밴드 돌파 전략", entryRule, exitRule);
     }
 
-    /***
-     * TODO(#109 후속 이슈): 볼린저 20 lookback에 맞는 워밍업 봉 수를 정의한다.
-     * 지금은 0을 반환해 기존 동작(요청 구간만으로 지표 계산)을 그대로 유지한다.
-     */
     @Override
     public int warmupBars() {
-        return 0;
+        return 20;
     }
 }
