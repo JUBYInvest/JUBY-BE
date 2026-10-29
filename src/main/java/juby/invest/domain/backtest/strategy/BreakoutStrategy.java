@@ -78,17 +78,13 @@ public class BreakoutStrategy implements BacktestStrategy{
 
             return closePrice1.isLessThanOrEqual(stopPrice);
         };
-        Rule exitRule = exitRule_1.and(exitRule_2);
+        Rule exitRule = exitRule_1.or(exitRule_2);
 
         return new BaseStrategy("돌파 전략", entryRule, exitRule);
     }
 
-    /***
-     * TODO(#109 후속 이슈): 돌파 20 · ATR 14 lookback에 맞는 워밍업 봉 수를 정의한다.
-     * 지금은 0을 반환해 기존 동작(요청 구간만으로 지표 계산)을 그대로 유지한다.
-     */
     @Override
     public int warmupBars() {
-        return 0;
+        return 100;
     }
 }

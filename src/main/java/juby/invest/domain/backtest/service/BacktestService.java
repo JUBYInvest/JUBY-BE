@@ -118,6 +118,31 @@ public class BacktestService {
                     tradeDate(series, position.getExit().getIndex()), exitPrice,
                     returnRate);
         }
+
+        logOpenPosition(series, record);
+    }
+
+    /***
+     * 함수 기능: 매수 후 매도 신호가 나오지 않아 요청 구간이 끝날 때까지 열려 있는 포지션을 로그로 남긴다.
+     */
+    private void logOpenPosition(BarSeries series, TradingRecord record){
+
+        Position currentPosition = record.getCurrentPosition();
+
+        if (currentPosition == null || !currentPosition.isOpened()){
+            return;
+        }
+
+        Num entryPrice = currentPosition.getEntry().getNetPrice();
+
+        // 미청산이라 실현 수익률이 없다. 요청 구간 마지막 봉의 종가로 평가만 해둔다.
+        Num lastClosePrice = series.getBar(series.getEndIndex()).getClosePrice();
+        Num valuationRate = lastClosePrice.minus(entryPrice).dividedBy(entryPrice)
+                .multipliedBy(series.numFactory().numOf(100));
+
+        log.info("미청산 내역 - 매수 {} ({}), 매도 신호 없음. {} 종가 {} 기준 평가수익률 {}%",
+                tradeDate(series, currentPosition.getEntry().getIndex()), entryPrice,
+                tradeDate(series, series.getEndIndex()), lastClosePrice, valuationRate);
     }
 
     /***
