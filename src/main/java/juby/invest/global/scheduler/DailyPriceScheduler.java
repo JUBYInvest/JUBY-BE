@@ -1,6 +1,5 @@
 package juby.invest.global.scheduler;
 
-import juby.invest.domain.kis.market.dto.HolidayDto;
 import juby.invest.domain.kis.market.dto.PeriodDailyPriceDto;
 import juby.invest.domain.kis.market.service.MarketService;
 import juby.invest.domain.stock.entity.DailyPrice;
@@ -51,15 +50,7 @@ public class DailyPriceScheduler {
         LocalDate today = LocalDate.now();
         String todayString = dateTimeFormatter.format(today);
 
-        List<HolidayDto.Output> holidayList = marketService.getHolidayList(todayString);
-
-        boolean isClosed = holidayList.stream()
-                .filter(day -> day.baseDate().equals(todayString))
-                .findFirst()
-                .map(day -> "N".equals(day.openDay()))
-                .orElse(false);
-
-        if (isClosed){
+        if (marketService.isClosedDay(today)){
             log.info("금일({})은 휴장일이어서 일봉 수집을 건너뜁니다", today);
             return;
         }

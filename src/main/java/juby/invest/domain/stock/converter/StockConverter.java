@@ -3,8 +3,10 @@ package juby.invest.domain.stock.converter;
 import juby.invest.domain.backtest.dto.LeadingStockResDto;
 import juby.invest.domain.backtest.entity.BacktestPresetResult;
 import juby.invest.domain.backtest.enums.LeadingStockTheme;
+import juby.invest.domain.kis.realtime.dto.RealtimePrice;
 import juby.invest.domain.pinecone.dto.PineconeDto;
 import juby.invest.domain.stock.dto.StockDetailDto;
+import juby.invest.domain.stock.dto.StockListDto;
 import juby.invest.domain.stock.dto.StockNewsDto;
 import juby.invest.domain.stock.dto.StockSearchDto;
 import juby.invest.domain.stock.entity.DailyPrice;
@@ -49,6 +51,43 @@ public class StockConverter {
                 .closePrice(dailyPrice.getClosePrice())
                 .volume(dailyPrice.getVolume())
                 .build();
+    }
+
+    /***
+     * 함수 기능: 종목 1건을 목록 응답 항목으로 변환한다. <b>실시간 체결가가 있으면 그것을 우선 쓴다.</b>
+     *          <p>
+     *          실시간 값이 없는 경우(장외 시간, 세션 장애, 신선도 기준을 넘긴 종목)에는 조용히 일봉으로 내려간다.
+     *          장애가 화면 에러로 번지지 않게 하는 것이 목적이고, 어느 쪽 값인지는 realtime 플래그로 알린다.
+     *          <p>
+     *          실시간 경로에서는 등락률을 KIS가 계산해 주므로 전일 종가가 필요하지 않다.
+     *
+     * @param dailyPrice     기준일 일봉
+     * @param prevClosePrice 직전 거래일 종가 (일봉 폴백에서 등락률 계산에 쓴다)
+     * @param isLiked        회원의 관심 종목 여부
+     * @param realtimePrice  실시간 시세. 없으면 null
+     */
+    public static StockListDto.StockList toStockList(DailyPrice dailyPrice, Integer prevClosePrice, boolean isLiked, RealtimePrice realtimePrice){
+
+        Stock stock = dailyPrice.getStock();
+
+        if (realtimePrice != null){
+            return StockListDto.StockList.of(
+                    stock.getStockCode(),
+                    stock.getStockName(),
+                    realtimePrice.tick().currentPrice(),
+                    realtimePrice.tick().changeRate(),
+                    realtimePrice.tick().accTradingValue(),
+                    isLiked,
+                    true);
+        }
+
+        return StockListDto.StockList.of(
+                stock.getStockCode(),
+                stock.getStockName(),
+                dailyPrice.getClosePrice(),
+                calculateFluctuation(dailyPrice.getClosePrice(), prevClosePrice),
+                dailyPrice.getTradingValue() == null ? 0L : dailyPrice.getTradingValue(),
+                isLiked);
     }
 
     /***
