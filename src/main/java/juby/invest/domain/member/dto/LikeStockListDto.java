@@ -23,6 +23,10 @@ public class LikeStockListDto {
         }
     }
 
+    /***
+     * @param closePrice 장중 실시간 값이 있으면 종가 자리에 현재가가 들어간다.
+     * @param realtime   이 항목의 가격이 실시간 체결가인지 여부. false면 일봉(종가) 폴백이다.
+     */
     @Builder
     public record LikeStockList(
             String stockCode,
@@ -30,7 +34,8 @@ public class LikeStockListDto {
             Integer closePrice,
             Double fluctuate,
             Long tradingValue,
-            LocalDateTime likedAt
+            LocalDateTime likedAt,
+            boolean realtime
     ){
         public static LikeStockList of(
                 String stockCode,
@@ -38,7 +43,8 @@ public class LikeStockListDto {
                 Integer closePrice,
                 Double fluctuate,
                 Long tradingValue,
-                LocalDateTime likedAt
+                LocalDateTime likedAt,
+                boolean realtime
         ){
             return LikeStockList.builder()
                     .stockCode(stockCode)
@@ -47,6 +53,7 @@ public class LikeStockListDto {
                     .fluctuate(fluctuate)
                     .tradingValue(tradingValue)
                     .likedAt(likedAt)
+                    .realtime(realtime)
                     .build();
         }
     }

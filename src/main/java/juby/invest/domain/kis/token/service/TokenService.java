@@ -3,13 +3,18 @@ package juby.invest.domain.kis.token.service;
 import juby.invest.domain.kis.token.dto.TokenDto;
 import juby.invest.domain.kis.token.entity.KisToken;
 import juby.invest.domain.kis.token.enums.TokenType;
+import juby.invest.domain.kis.token.exception.TokenException;
+import juby.invest.domain.kis.token.exception.code.TokenErrorCode;
 import juby.invest.domain.kis.token.repository.TokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -87,6 +92,52 @@ public class TokenService {
             }
         }
         return response;
+    }
+
+    /***
+     * 웹소켓 접속키(approval_key)를 발급한다.
+     * <p>
+     * access_token과 달리 저장하지 않는다. 접속키는 세션 연결 시 초기 1회만 쓰이고,
+     * 인증이 끝난 뒤에는 세션이 끊기지 않는 한 유효기간(24시간)이 지나도 수신에 영향을 주지 않는다.
+     * 다시 필요해지는 시점은 재접속뿐이고, 그때는 새로 발급받으면 되므로 DB에 넣어도 재사용할 구간이 없다.
+     *
+     * @param restBaseUrl 발급 요청을 보낼 KIS REST 주소 (실전/모의 도메인이 다르다)
+     * @param appKey      앱키
+     * @param appSecret   앱시크릿
+     * @return approval_key 값
+     */
+    @Transactional(propagation = Propagation.SUPPORTS) // 외부 HTTP 호출뿐이라 DB 커넥션을 쥐고 있을 이유가 없다
+    public String issueApprovalKey(String restBaseUrl, String appKey, String appSecret) {
+
+        TokenDto.ApprovalRequest request = TokenDto.ApprovalRequest.builder()
+                .grantType("client_credentials")
+                .appKey(appKey)
+                .secretKey(appSecret)
+                .build();
+
+        TokenDto.ApprovalResponse response;
+        try {
+            response = RestClient.create(restBaseUrl).post()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/oauth2/Approval")
+                            .build())
+                    .header("content-type", "application/json; charset=utf-8")
+                    .body(request)
+                    .retrieve()
+                    .body(TokenDto.ApprovalResponse.class);
+        } catch (RestClientException e) {
+            // 접속키 값은 물론 앱키도 로그에 남기지 않는다.
+            log.error("웹소켓 접속키 발급 실패", e);
+            throw new TokenException(TokenErrorCode.APPROVAL_KEY_FAILED);
+        }
+
+        if (response == null || !StringUtils.hasText(response.approvalKey())){
+            log.error("웹소켓 접속키 발급 응답이 비어 있습니다.");
+            throw new TokenException(TokenErrorCode.APPROVAL_KEY_FAILED);
+        }
+
+        log.info("웹소켓 접속키 발급 성공");
+        return response.approvalKey();
     }
 
     /***

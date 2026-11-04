@@ -1,6 +1,9 @@
 package juby.invest.domain.member.service;
 
+import juby.invest.domain.kis.realtime.dto.RealtimeTick;
+import juby.invest.domain.kis.realtime.service.RealtimePriceStore;
 import juby.invest.domain.member.dto.LikeStockDto;
+import juby.invest.domain.member.dto.LikeStockListDto;
 import juby.invest.domain.member.entity.LikeStock;
 import juby.invest.domain.member.entity.Member;
 import juby.invest.domain.member.enums.Role;
@@ -21,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,12 +45,14 @@ class LikeStockServiceTest {
     @Mock private LikeStockRepository likeStockRepository;
 
     private LikeStockService likeStockService;
+    private RealtimePriceStore realtimePriceStore;
     private CustomOAuth2User user;
     private Member member;
 
     @BeforeEach
     void setUp(){
-        likeStockService = new LikeStockService(memberRepository, stockRepository, dailyPriceRepository, likeStockRepository);
+        realtimePriceStore = new RealtimePriceStore();
+        likeStockService = new LikeStockService(memberRepository, stockRepository, dailyPriceRepository, likeStockRepository, realtimePriceStore);
         user = new CustomOAuth2User(1L, Role.USER, "테스터", null, null);
 
         member = Member.builder().id(1L).build();
@@ -96,6 +102,32 @@ class LikeStockServiceTest {
 
             then(dailyPriceRepository).should(org.mockito.Mockito.never())
                     .findMaxDateBefore(any());
+        }
+
+        @Test
+        @DisplayName("장중 실시간 체결가가 있으면 일봉 종가 대신 현재가로 응답한다")
+        void usesRealtimePriceWhenAvailable() {
+
+            // given
+            Stock stock = new Stock("005930", "삼성전자");
+            LikeStock likeStock = LikeStock.builder().member(member).stock(stock).build();
+            given(likeStockRepository.findAllByMemberIdWithStock(1L)).willReturn(List.of(likeStock));
+            given(dailyPriceRepository.findMaxDate()).willReturn(LocalDate.of(2026, 11, 3));
+            given(dailyPriceRepository.findMaxDateBefore(any())).willReturn(LocalDate.of(2026, 10, 30));
+            given(dailyPriceRepository.findAllByDateAndStockCodesWithStock(any(), any())).willReturn(List.of());
+
+            realtimePriceStore.put(new RealtimeTick("005930", "133000", 73100, -0.14,
+                    70000, 74000, 69000, 1234L, 3_000_000_000_000L));
+
+            // when
+            LikeStockListDto.LikeStockListRes response = likeStockService.getLikeStockList(user);
+
+            // then
+            // 일봉이 비어 있어도(기준일 일봉 조회 결과 없음) 실시간 값으로 가격을 채운다.
+            assertThat(response.likeStockList()).hasSize(1);
+            assertThat(response.likeStockList().getFirst().closePrice()).isEqualTo(73100);
+            assertThat(response.likeStockList().getFirst().fluctuate()).isEqualTo(-0.14);
+            assertThat(response.likeStockList().getFirst().realtime()).isTrue();
         }
     }
 }

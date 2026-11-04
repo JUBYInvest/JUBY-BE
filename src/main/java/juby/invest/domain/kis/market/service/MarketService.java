@@ -8,9 +8,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
@@ -22,6 +25,8 @@ public class MarketService {
     @Value("${kis.real.app-secret}") String realAppSecret;
     @Value("${kis.mock.app-secret}") String mockAppSecret;
     @Value("${kis.mock.app-key}") String mockAppKey;
+
+    private static final DateTimeFormatter HOLIDAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final RestClient mockInvestRestClient;
     private final RestClient realInvestRestClient;
@@ -100,6 +105,23 @@ public class MarketService {
             throw new RuntimeException("국내휴장일조회 API 호출 실패");
         }
         return response.output();
+    }
+
+    /***
+     * 함수 기능: 해당 날짜가 휴장일인지 판별한다.
+     *          국내휴장일조회 응답에 그 날짜가 없으면 개장일로 본다(보수적으로 스케줄러를 돌린다).
+     * @param date 판별할 날짜
+     * @return 휴장일이면 true
+     */
+    public boolean isClosedDay(LocalDate date) throws InterruptedException {
+
+        String baseDate = HOLIDAY_DATE_FORMATTER.format(date);
+
+        return getHolidayList(baseDate).stream()
+                .filter(day -> day.baseDate().equals(baseDate))
+                .findFirst()
+                .map(day -> "N".equals(day.openDay()))
+                .orElse(false);
     }
 
     /***

@@ -9,6 +9,8 @@ import juby.invest.domain.backtest.exception.code.BacktestErrorCode;
 import juby.invest.domain.backtest.repository.BacktestPresetResultRepository;
 import juby.invest.domain.kis.market.dto.CurrentPriceRes;
 import juby.invest.domain.kis.market.service.MarketService;
+import juby.invest.domain.kis.realtime.dto.RealtimePrice;
+import juby.invest.domain.kis.realtime.service.RealtimePriceStore;
 import juby.invest.domain.member.repository.LikeStockRepository;
 import juby.invest.domain.news.enums.NewsSortType;
 import juby.invest.domain.pinecone.dto.PineconeDto;
@@ -47,6 +49,7 @@ public class StockService {
     private final DailyPriceRepository dailyPriceRepository;
     private final LikeStockRepository likeStockRepository;
     private final MarketService marketService;
+    private final RealtimePriceStore realtimePriceStore;
     private final PineconeService pineconeService;
     private final BacktestPresetResultRepository backtestPresetResultRepository;
 
@@ -62,9 +65,13 @@ public class StockService {
 
 
     /***
-     * 함수 기능: DB에 저장된 최신 날짜를 기준으로 전 종목의 종가/등락률/거래대금을 조회한다.
-     *          스케줄러가 16시에 금일 데이터를 적재하므로, 적재 전에는 직전 거래일 기준으로 조회한다.
-     * @return StockListRes 목록 (종목코드, 종목명, 종가, 등락률, 거래대금)
+     * 함수 기능: 전 종목의 가격/등락률/거래대금을 조회한다.
+     *          <p>
+     *          장중에는 실시간 체결가를, 그 밖의 시간에는 DB에 저장된 최신 날짜의 일봉(종가)을 쓴다.
+     *          스케줄러가 16시에 금일 일봉을 적재하므로, 적재 전에는 직전 거래일 기준으로 조회한다.
+     *          <p>
+     *          정렬(가격/등락률/거래대금)은 변환 후의 값으로 이뤄지므로, 장중에는 실시간 값 기준으로 정렬된다.
+     * @return StockListRes 목록 (종목코드, 종목명, 가격, 등락률, 거래대금, 실시간 여부)
      */
     public StockListDto.StockListRes getStockList(CustomOAuth2User user, StockListDto.StockListReq stockListReq) {
 
@@ -91,18 +98,19 @@ public class StockService {
                 ? Set.of()
                 : likeStockRepository.findStockCodesByMemberId(user.getId());
 
+        // 100종목을 종목별로 조회하지 않고 스냅샷 한 번으로 가져온다.
+        Map<String, RealtimePrice> realtimePrices = realtimePriceStore.findAllFresh();
+
         List<StockListDto.StockList> stockList = dailyPrices.stream()
-                .map(dp -> StockListDto.StockList.of(
-                        dp.getStock().getStockCode(),
-                        dp.getStock().getStockName(),
-                        dp.getClosePrice(),
-                        calculateFluctuation(dp.getClosePrice(), prevClosePrices.get(dp.getStock().getStockCode())),
-                        dp.getTradingValue() == null ? 0L : dp.getTradingValue(),
-                        likedStockCodes.contains(dp.getStock().getStockCode())))
+                .map(dp -> StockConverter.toStockList(
+                        dp,
+                        prevClosePrices.get(dp.getStock().getStockCode()),
+                        likedStockCodes.contains(dp.getStock().getStockCode()),
+                        realtimePrices.get(dp.getStock().getStockCode())))
                 .sorted(stockListReq.toComparator())
                 .toList();
 
-        return StockListDto.StockListRes.of(baseDate, stockList);
+        return StockListDto.StockListRes.of(baseDate, LocalDateTime.now(), stockList);
     }
 
     public LeadingStockResDto.LeadingStockRes getLeadingStocks() {
@@ -160,10 +168,21 @@ public class StockService {
         Stock stock = stockRepository.findByStockCode(stockCode)
                 .orElseThrow(() -> new StockException(StockErrorCode.STOCK_NOT_FOUND));
 
-        // 현재가와 전일 대비 변동률을 KIS API를 통해 가져온다.
-        CurrentPriceRes.Info kisResponse = marketService.getDailyPrice(stockCode);
-        int currentPrice = Integer.parseInt(kisResponse.currentPrice());
-        double comparePrev = Double.parseDouble(kisResponse.dayChange());
+        // 실시간 체결가가 있으면 그것을 쓰고, 없으면 KIS 현재가 API를 호출한다.
+        // 장중에는 이 분기 덕분에 상세 화면의 REST 호출이 사라진다.
+        Optional<RealtimePrice> realtimePrice = realtimePriceStore.findFresh(stockCode);
+
+        int currentPrice;
+        double comparePrev;
+
+        if (realtimePrice.isPresent()){
+            currentPrice = realtimePrice.get().tick().currentPrice();
+            comparePrev = realtimePrice.get().tick().changeRate();
+        } else {
+            CurrentPriceRes.Info kisResponse = marketService.getDailyPrice(stockCode);
+            currentPrice = Integer.parseInt(kisResponse.currentPrice());
+            comparePrev = Double.parseDouble(kisResponse.dayChange());
+        }
 
         // 최신 거래일을 구한다.
         LocalDate recentTradeDay = dailyPriceRepository.findMaxDateByStock(stock);
@@ -177,7 +196,7 @@ public class StockService {
                   .map(StockConverter::toDailyPrices)
                   .toList();
 
-        return StockDetailDto.StockDetailRes.of(stock.getStockName(), stockCode, currentPrice, comparePrev, period, dailyPrices);
+        return StockDetailDto.StockDetailRes.of(stock.getStockName(), stockCode, currentPrice, comparePrev, period, dailyPrices, realtimePrice.isPresent());
     }
 
     /***

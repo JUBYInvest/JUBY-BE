@@ -1,5 +1,7 @@
 package juby.invest.domain.member.service;
 
+import juby.invest.domain.kis.realtime.dto.RealtimePrice;
+import juby.invest.domain.kis.realtime.service.RealtimePriceStore;
 import juby.invest.domain.member.converter.LikeStockConverter;
 import juby.invest.domain.member.dto.LikeStockDto;
 import juby.invest.domain.member.dto.LikeStockListDto;
@@ -39,6 +41,7 @@ public class LikeStockService {
     private final StockRepository stockRepository;
     private final DailyPriceRepository dailyPriceRepository;
     private final LikeStockRepository likeStockRepository;
+    private final RealtimePriceStore realtimePriceStore;
 
     /***
      * 함수 기능: 회원의 관심 종목을 등록한다.
@@ -92,8 +95,8 @@ public class LikeStockService {
 
     /***
      * 함수 기능: 회원의 관심 종목 목록을 조회한다.
-     *          시세는 daily_price에 적재된 최신 거래일 기준이며,
-     *          등락률은 직전 거래일 종가와 비교해 계산한다.
+     *          장중에는 실시간 체결가를 쓰고, 그 밖의 시간에는 daily_price에 적재된 최신 거래일 기준으로 내려간다.
+     *          일봉 경로의 등락률은 직전 거래일 종가와 비교해 계산한다.
      * @param user 인증된 회원
      * @return LikeStockListRes (기준일, 총 개수, 관심 종목 목록)
      */
@@ -122,9 +125,12 @@ public class LikeStockService {
         Map<String, DailyPrice> basePrices = toPriceMap(baseDate, stockCodes);
         Map<String, DailyPrice> prevPrices = toPriceMap(prevDate, stockCodes);
 
+        // 장중이면 실시간 체결가로 내려간다. 종목 목록 화면과 기준이 같아야 두 화면의 시세가 어긋나지 않는다.
+        Map<String, RealtimePrice> realtimePrices = realtimePriceStore.findAllFresh();
+
         // 관심 종목 1건을 응답 항목으로 변환한다.
         List<LikeStockListDto.LikeStockList> likeStockLists = likeStocks.stream()
-                .map(ls -> LikeStockConverter.convertToLikeStockList(ls, basePrices, prevPrices))
+                .map(ls -> LikeStockConverter.convertToLikeStockList(ls, basePrices, prevPrices, realtimePrices))
                 .toList();
 
         return LikeStockListDto.LikeStockListRes.of(baseDate, likeStockLists.size(), likeStockLists);

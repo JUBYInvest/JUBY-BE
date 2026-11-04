@@ -47,7 +47,7 @@ CI (`.github/workflows/dev-deploy.yml`) triggers on PRs merged into `dev`: build
 
 Code lives under `juby.invest` and is split into `domain/*` (feature verticals) and `global/*` (cross-cutting concerns), plus a one-off `initiate/` package for DB seeding.
 
-Each domain package (`backtest`, `kis/market`, `kis/token`, `member`, `news`, `openai`, `personality_test`, `pinecone`, `stock`) follows the same internal layering:
+Each domain package (`backtest`, `kis/market`, `kis/realtime`, `kis/token`, `member`, `news`, `openai`, `personality_test`, `pinecone`, `stock`) follows the same internal layering:
 
 ```
 controller/   REST endpoints, returns ApiResponse<T>
@@ -86,7 +86,7 @@ When adding a new failure case, add an entry to the relevant domain's `*ErrorCod
 
 ### Logging
 
-`global/logging/` holds two classes; there is no `logback-spring.xml` — everything is driven from `application-*.yaml`.
+`global/logging/` holds the MDC filter, the scheduler aspect, and `LogThrottle`/`ThrottledLogger` (per-interval WARN collapsing for tick-rate paths); there is no `logback-spring.xml` — everything is driven from `application-*.yaml`.
 
 - `MdcLoggingFilter` (`@Order(Ordered.HIGHEST_PRECEDENCE)`) sits **outside** the Spring Security chain so it also captures requests whose exceptions never reach `GeneralExceptionAdvice` (JWT parse failures, 401/403 rendering). It stamps MDC, emits **one completion log line per request**, and clears MDC in `finally`.
 - `SchedulerLoggingAspect` tags `@Scheduled` runs with `jobName`/`runId`/`jobResult`/`jobLatencyMs`. Its pointcut is **package-based** (`execution(* juby.invest.global.scheduler..*.*(..))`), not `@annotation(Scheduled)`: `DailyPriceScheduler.getDailyPrice()` carries two `@Scheduled` annotations, which the compiler folds into a single `@Schedules` container that `@annotation(Scheduled)` does not match. New schedulers must live in `global/scheduler` to be picked up.
@@ -109,11 +109,29 @@ Log level policy (ERROR is the alerting trigger — only use it for "someone mus
 - `MdcLoggingFilter.shouldNotFilter` skips `/actuator/**`, `/swagger-ui/**`, `/v3/api-docs/**`, `/webjars/**`, `/favicon.ico`, `/*.html`. Health checks and docs are high-volume and low-value. Because the filter is skipped entirely there, it also calls `MDC.clear()` **on entry** to drop anything a skipped request left on a pooled thread.
 - Never log request/response bodies, raw tokens, cookies, or the `Authorization` header.
 
-Tests for both classes live in `src/test/java/juby/invest/global/logging/` and use the `LogCapture` appender, which snapshots the MDC at append time (MDC is cleared immediately after logging, so reading it later shows nothing).
+Tests for these classes live in `src/test/java/juby/invest/global/logging/` and use the `LogCapture` appender, which snapshots the MDC at append time (MDC is cleared immediately after logging, so reading it later shows nothing).
 
 ### KIS (Korea Investment Securities) integration
 
-`domain/kis/token` manages OAuth access tokens for the KIS Open API (`KisToken` entity, cached/persisted via `TokenRepository`, mock vs real endpoints configured under `kis.mock.*` / `kis.real.*`). `domain/kis/market` fetches daily price/holiday/trading-volume data from KIS; `DailyPriceScheduler` runs scheduled pulls.
+`domain/kis/token` manages OAuth access tokens for the KIS Open API (`KisToken` entity, cached/persisted via `TokenRepository`, mock vs real endpoints configured under `kis.mock.*` / `kis.real.*`). `domain/kis/market` fetches daily price/holiday/trading-volume data from KIS; `DailyPriceScheduler` runs scheduled pulls. `MarketService.isClosedDay` wraps the holiday API — reuse it instead of re-deriving "is the market open" from `getHolidayList`.
+
+#### Realtime quotes (`domain/kis/realtime`)
+
+Intraday prices come from the KIS **websocket** (`H0STCNT0` 국내주식 실시간체결가), not from polling. `RealtimeSessionManager` opens one session per credential in `kis.ws.credentials` and registers that session's assigned `RealtimeSubscription`s (a `(trId, trKey)` pair — one slot of the 41-per-session cap).
+
+Frame handling is split in two so another TR can be added without touching the parsing rules: `RealtimeFrameSplitter` does the TR-agnostic work (`|` split, record count, deriving record length) and returns a `RealtimeFrame`; `RealtimeTickParser` only interprets the fields inside a record and feeds `RealtimePriceStore` (which extends `RealtimeSnapshotStore<T>`, owner of the map and the freshness rule).
+
+`StockService.getStockList`/`getStockDetails` and `LikeStockService.getLikeStockList` prefer the store and fall back to `DailyPrice` when it misses.
+
+Constraints that drive this design — changing any of them means re-reading the whole flow:
+
+- **41 registrations per session, one session per appkey.** 100 stocks therefore need 3 credentials (real ×1 + mock ×2). `SubscriptionAllocator` splits stocks deterministically (sorted, even split) so the same session always owns the same stocks across restarts, and throws rather than silently dropping subscriptions past the cap.
+- **Single instance only.** Two app instances with the same appkey kill each other's sessions, so `RealtimeSessionScheduler` (08:55 connect / 15:40 disconnect) is `@Profile("dev")`. Scaling out requires session-ownership design first; there is no shared store for quotes.
+- **`approval_key` is never persisted.** It is only used to establish a session and does not affect an already-open one, so `TokenService.issueApprovalKey` returns it without saving, and reconnects simply issue a new one.
+- **Ticks are never written to the DB.** Only the latest tick per stock is kept, with freshness judged by *receive time* (`RealtimeSnapshotStore.STALE_AFTER`). Confirmed daily closes still come from `DailyPriceScheduler`.
+- **Frame parsing must not throw.** Record length is derived by dividing field count by the frame's record count (KIS has appended fields before: 46 → 47), and a broken record is dropped alone. The parser also checks the stock-code format (6 digits) because a divisible-but-shifted frame otherwise passes silently. Per-tick failure logs go through `ThrottledLogger` — unthrottled they would emit thousands of lines per second.
+
+Never log an appkey, app secret, or `approval_key`; session logs are identified by the credential's `name` instead.
 
 ### Backtesting
 
