@@ -17,6 +17,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SubscriptionAllocatorTest {
 
     private static final String STOCK_TR = "H0STCNT0";
+    private static final String INDEX_TR = "H0UPCNT0";
+
+    /*** 지수 구독 2건 (코스피, 코스닥) */
+    private static final List<RealtimeSubscription> INDICES = List.of(
+            new RealtimeSubscription(INDEX_TR, "0001"),
+            new RealtimeSubscription(INDEX_TR, "1001"));
 
     /*** 종목 구독 100건 (001000 ~ 001099) */
     private static List<RealtimeSubscription> hundredStockCodes() {
@@ -101,6 +107,52 @@ class SubscriptionAllocatorTest {
         assertThatThrownBy(() -> SubscriptionAllocator.allocate(codes, 0))
                 .isInstanceOf(RealtimeException.class)
                 .hasFieldOrPropertyWithValue("errorCode", RealtimeErrorCode.NO_CREDENTIAL_CONFIGURED);
+    }
+
+    @Test
+    @DisplayName("고정 배정한 지수는 지정한 세션에만 들어간다")
+    void pinsSubscriptionsToGivenSession() {
+
+        // 모의 세션이 지수 TR을 지원하지 않을 수 있으므로 지수는 실전 세션(여기서는 0번)에 몰아 둔다.
+        List<List<RealtimeSubscription>> allocation =
+                SubscriptionAllocator.allocate(hundredStockCodes(), INDICES, 0, 3);
+
+        assertThat(allocation).extracting(List::size).containsExactly(36, 33, 33);
+        assertThat(allocation.getFirst()).containsAll(INDICES);
+        assertThat(allocation.get(1)).doesNotContainAnyElementsOf(INDICES);
+        assertThat(allocation.get(2)).doesNotContainAnyElementsOf(INDICES);
+    }
+
+    @Test
+    @DisplayName("고정 배정 세션이 0번이 아니어도 그 세션에 들어간다")
+    void pinsToNonFirstSession() {
+
+        List<List<RealtimeSubscription>> allocation =
+                SubscriptionAllocator.allocate(hundredStockCodes(), INDICES, 2, 3);
+
+        assertThat(allocation).extracting(List::size).containsExactly(34, 33, 35);
+        assertThat(allocation.get(2)).containsAll(INDICES);
+    }
+
+    @Test
+    @DisplayName("상한 검사는 고정분을 더한 최종 크기로 한다")
+    void checksLimitAfterPinning() {
+
+        // 종목만 보면 41건으로 상한에 딱 맞지만, 지수 2건을 더하면 43건이 되어 넘는다.
+        List<RealtimeSubscription> codes =
+                hundredStockCodes().subList(0, SubscriptionAllocator.MAX_SUBSCRIPTION_PER_SESSION);
+
+        assertThatThrownBy(() -> SubscriptionAllocator.allocate(codes, INDICES, 0, 1))
+                .isInstanceOf(RealtimeException.class)
+                .hasFieldOrPropertyWithValue("errorCode", RealtimeErrorCode.SUBSCRIPTION_LIMIT_EXCEEDED);
+    }
+
+    @Test
+    @DisplayName("고정 배정 세션 인덱스가 범위를 벗어나면 거부한다")
+    void rejectsOutOfRangePinnedIndex() {
+
+        assertThatThrownBy(() -> SubscriptionAllocator.allocate(hundredStockCodes(), INDICES, 3, 3))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

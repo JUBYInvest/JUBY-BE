@@ -26,16 +26,18 @@ class RealtimePriceWebSocketHandlerTest {
 
     @Mock private WebSocketSession session;
 
-    private RealtimePriceStore store;
+    private RealtimePriceStore priceStore;
+    private RealtimeIndexStore indexStore;
     private RealtimePriceWebSocketHandler handler;
     private final List<CloseStatus> closeNotifications = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
-        store = new RealtimePriceStore();
+        priceStore = new RealtimePriceStore();
+        indexStore = new RealtimeIndexStore();
         closeNotifications.clear();
         handler = new RealtimePriceWebSocketHandler(
-                "real", store, new ObjectMapper(), closeNotifications::add);
+                "real", priceStore, indexStore, new ObjectMapper(), closeNotifications::add);
     }
 
     /*** 체결 프레임 1건. 읽지 않는 자리는 0으로 채운다. */
@@ -60,7 +62,7 @@ class RealtimePriceWebSocketHandlerTest {
 
         handler.handleMessage(session, contractFrame("005930", "73100"));
 
-        assertThat(store.findFresh("005930").orElseThrow().tick().currentPrice()).isEqualTo(73100);
+        assertThat(priceStore.findFresh("005930").orElseThrow().tick().currentPrice()).isEqualTo(73100);
     }
 
     @Test
@@ -120,7 +122,57 @@ class RealtimePriceWebSocketHandlerTest {
 
         handler.handleMessage(session, new TextMessage("1|H0STCNI0|1|암호화된내용"));
 
-        assertThat(store.findAllFresh()).isEmpty();
+        assertThat(priceStore.findAllFresh()).isEmpty();
+    }
+
+    /*** 지수 프레임 1건. 읽지 않는 자리는 0으로 채운다. */
+    private static TextMessage indexFrame(String indexCode, String currentIndex) {
+        String[] fields = new String[30];
+        Arrays.fill(fields, "0");
+        fields[0] = indexCode;
+        fields[1] = "133000";
+        fields[2] = currentIndex;
+        fields[5] = "1234";
+        fields[6] = "5678";
+        fields[9] = "-0.37";
+        fields[10] = "2550.10";
+        fields[11] = "2561.44";
+        fields[12] = "2538.07";
+        return new TextMessage("0|H0UPCNT0|1|" + String.join("^", fields));
+    }
+
+    @Test
+    @DisplayName("지수 프레임은 지수 저장소로 보낸다")
+    void routesIndexFrameToIndexStore() throws Exception {
+
+        handler.handleMessage(session, indexFrame("0001", "2543.21"));
+
+        assertThat(indexStore.findFresh("0001").orElseThrow().tick().currentIndex())
+                .isEqualByComparingTo("2543.21");
+        // 체결가 저장소는 건드리지 않는다.
+        assertThat(priceStore.findAllFresh()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("체결 프레임은 지수 저장소를 건드리지 않는다")
+    void routesContractFrameOnlyToPriceStore() throws Exception {
+
+        handler.handleMessage(session, contractFrame("005930", "73100"));
+
+        assertThat(indexStore.findAllFresh()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("구독하지 않은 TR의 프레임은 어느 저장소에도 넣지 않는다")
+    void ignoresUnknownTr() throws Exception {
+
+        String[] fields = new String[30];
+        Arrays.fill(fields, "0");
+
+        handler.handleMessage(session, new TextMessage("0|H0STASP0|1|" + String.join("^", fields)));
+
+        assertThat(priceStore.findAllFresh()).isEmpty();
+        assertThat(indexStore.findAllFresh()).isEmpty();
     }
 
     @Test

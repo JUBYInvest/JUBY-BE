@@ -47,7 +47,7 @@ CI (`.github/workflows/dev-deploy.yml`) triggers on PRs merged into `dev`: build
 
 Code lives under `juby.invest` and is split into `domain/*` (feature verticals) and `global/*` (cross-cutting concerns), plus a one-off `initiate/` package for DB seeding.
 
-Each domain package (`backtest`, `kis/market`, `kis/realtime`, `kis/token`, `member`, `news`, `openai`, `personality_test`, `pinecone`, `stock`) follows the same internal layering:
+Each domain package (`backtest`, `kis/market`, `kis/realtime`, `kis/token`, `marketindex`, `member`, `news`, `openai`, `personality_test`, `pinecone`, `stock`) follows the same internal layering:
 
 ```
 controller/   REST endpoints, returns ApiResponse<T>
@@ -117,19 +117,20 @@ Tests for these classes live in `src/test/java/juby/invest/global/logging/` and 
 
 #### Realtime quotes (`domain/kis/realtime`)
 
-Intraday prices come from the KIS **websocket** (`H0STCNT0` 국내주식 실시간체결가), not from polling. `RealtimeSessionManager` opens one session per credential in `kis.ws.credentials` and registers that session's assigned `RealtimeSubscription`s (a `(trId, trKey)` pair — one slot of the 41-per-session cap).
+Intraday prices come from the KIS **websocket**, not from polling. Two TRs share the same pipeline: `H0STCNT0` (국내주식 실시간체결가) and `H0UPCNT0` (국내지수 실시간체결). `RealtimeSessionManager` opens one session per credential in `kis.ws.credentials` and registers that session's assigned `RealtimeSubscription`s (a `(trId, trKey)` pair — one slot of the 41-per-session cap).
 
-Frame handling is split in two so another TR can be added without touching the parsing rules: `RealtimeFrameSplitter` does the TR-agnostic work (`|` split, record count, deriving record length) and returns a `RealtimeFrame`; `RealtimeTickParser` only interprets the fields inside a record and feeds `RealtimePriceStore` (which extends `RealtimeSnapshotStore<T>`, owner of the map and the freshness rule).
+Frame handling is split so a second TR costs almost nothing: `RealtimeFrameSplitter` does the TR-agnostic work (`|` split, record count, deriving record length) and returns a `RealtimeFrame`; `RealtimePriceWebSocketHandler` then routes by `trId` to `RealtimeTickParser` → `RealtimePriceStore` or `RealtimeIndexParser` → `RealtimeIndexStore`. Both stores extend `RealtimeSnapshotStore<T>`, which owns the map and the freshness rule. **The two parsers cannot be merged — the field positions differ** (전일대비율 is index 5 for stocks, 9 for indices; 누적거래량 13 vs 5), and index values are decimals so they are parsed as `BigDecimal`.
 
-`StockService.getStockList`/`getStockDetails` and `LikeStockService.getLikeStockList` prefer the store and fall back to `DailyPrice` when it misses.
+`StockService.getStockList`/`getStockDetails` and `LikeStockService.getLikeStockList` prefer `RealtimePriceStore` and fall back to `DailyPrice` when it misses. `MarketIndexService` (domain `marketindex`) prefers `RealtimeIndexStore`, then a 1-minute cache of the KIS 현재지수 REST call (`MarketService.getIndexPrice`, `FHPUP02100000`) — there is no index table, so the REST call is the only fallback. It drops an index that fails rather than failing the whole response.
 
 Constraints that drive this design — changing any of them means re-reading the whole flow:
 
-- **41 registrations per session, one session per appkey.** 100 stocks therefore need 3 credentials (real ×1 + mock ×2). `SubscriptionAllocator` splits stocks deterministically (sorted, even split) so the same session always owns the same stocks across restarts, and throws rather than silently dropping subscriptions past the cap.
+- **41 registrations per session, one session per appkey.** 100 stocks + 2 indices = 102 slots, so 3 credentials are needed (real ×1 + mock ×2). `SubscriptionAllocator` splits stocks deterministically (sorted, even split) so the same session always owns the same stocks across restarts, and throws rather than silently dropping subscriptions past the cap.
+- **Indices are pinned to the real-domain session** (`Credential.realDomain`, set in `application.yaml`). A mock session that does not support the index TR would receive nothing *without being rejected*, which is far harder to notice than a hard failure. `RealtimeConnectionManualTest.mockSessionSupportsIndexTr` is the test that would let us lift this restriction.
 - **Single instance only.** Two app instances with the same appkey kill each other's sessions, so `RealtimeSessionScheduler` (08:55 connect / 15:40 disconnect) is `@Profile("dev")`. Scaling out requires session-ownership design first; there is no shared store for quotes.
 - **`approval_key` is never persisted.** It is only used to establish a session and does not affect an already-open one, so `TokenService.issueApprovalKey` returns it without saving, and reconnects simply issue a new one.
 - **Ticks are never written to the DB.** Only the latest tick per stock is kept, with freshness judged by *receive time* (`RealtimeSnapshotStore.STALE_AFTER`). Confirmed daily closes still come from `DailyPriceScheduler`.
-- **Frame parsing must not throw.** Record length is derived by dividing field count by the frame's record count (KIS has appended fields before: 46 → 47), and a broken record is dropped alone. The parser also checks the stock-code format (6 digits) because a divisible-but-shifted frame otherwise passes silently. Per-tick failure logs go through `ThrottledLogger` — unthrottled they would emit thousands of lines per second.
+- **Frame parsing must not throw.** Record length is derived by dividing field count by the frame's record count (KIS has appended fields before: 46 → 47), and a broken record is dropped alone. Each parser also checks the key format (6-digit stock code, 4-digit index code) because a divisible-but-shifted frame otherwise passes silently. Per-tick failure logs go through `ThrottledLogger` — unthrottled they would emit thousands of lines per second.
 
 Never log an appkey, app secret, or `approval_key`; session logs are identified by the credential's `name` instead.
 

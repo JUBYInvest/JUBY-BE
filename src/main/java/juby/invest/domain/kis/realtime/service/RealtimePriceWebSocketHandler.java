@@ -2,8 +2,10 @@ package juby.invest.domain.kis.realtime.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import juby.invest.domain.kis.realtime.converter.RealtimeFrame;
+import juby.invest.domain.kis.realtime.converter.RealtimeFrameSplitter;
+import juby.invest.domain.kis.realtime.converter.RealtimeIndexParser;
 import juby.invest.domain.kis.realtime.converter.RealtimeTickParser;
-import juby.invest.domain.kis.realtime.dto.RealtimeTick;
 import juby.invest.global.logging.ThrottledLogger;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +18,6 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.List;
 import java.util.function.Consumer;
 
 /***
@@ -24,6 +25,9 @@ import java.util.function.Consumer;
  * <p>
  * 세션마다 담당 종목과 로그 식별자가 다르므로 세션별로 새로 만든다. 그래서 @Component가 아니다.
  * (SecurityConfig가 JwtAuthenticationFilter를 직접 new 하는 것과 같은 이유 - 빈으로 만들면 안 되는 쪽이다)
+ * <p>
+ * 체결가(H0STCNT0)와 지수(H0UPCNT0)가 같은 세션으로 함께 들어오므로, 프레임의 tr_id로 갈라 각자의
+ * 저장소에 넣는다.
  * <p>
  * 프레임 종류는 첫 글자로 갈린다.
  * <ul>
@@ -43,7 +47,8 @@ public class RealtimePriceWebSocketHandler extends TextWebSocketHandler {
 
     /*** 로그 식별자. 세션이 여러 개이므로 어느 세션의 로그인지 구분할 수단이 필요하다. (앱키는 절대 로깅하지 않는다) */
     private final String sessionName;
-    private final RealtimePriceStore store;
+    private final RealtimePriceStore priceStore;
+    private final RealtimeIndexStore indexStore;
     private final ObjectMapper objectMapper;
 
     /*** 세션이 닫혔을 때 세션 매니저에 알리는 통로. 재접속 판단은 매니저가 한다. */
@@ -56,6 +61,8 @@ public class RealtimePriceWebSocketHandler extends TextWebSocketHandler {
     private final ThrottledLogger encryptedFrameLog =
             new ThrottledLogger(RealtimePriceWebSocketHandler.class, Duration.ofSeconds(60));
     private final ThrottledLogger frameFailureLog =
+            new ThrottledLogger(RealtimePriceWebSocketHandler.class, Duration.ofSeconds(60));
+    private final ThrottledLogger unknownTrLog =
             new ThrottledLogger(RealtimePriceWebSocketHandler.class, Duration.ofSeconds(60));
 
     @Override
@@ -78,7 +85,7 @@ public class RealtimePriceWebSocketHandler extends TextWebSocketHandler {
 
             // 암호화 유무: 0 암호화 되지 않은 데이터 / 1 암호화된 데이터
             if (type == PLAIN_DATA){
-                handleTicks(payload);
+                route(payload);
             } else if (type == ENCRYPTED_DATA){
                 encryptedFrameLog.warn("체결가 세션에 암호화 프레임이 수신되어 무시합니다. 세션: {}", sessionName);
             } else {
@@ -89,9 +96,22 @@ public class RealtimePriceWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void handleTicks(String payload) {
-        List<RealtimeTick> ticks = RealtimeTickParser.parse(payload);
-        ticks.forEach(store::put);
+    /***
+     * 실시간 데이터 프레임을 TR에 따라 알맞은 파서/저장소로 보낸다.
+     * 프레임 분해는 한 번만 하고, 파서는 분해된 프레임을 받는다.
+     */
+    private void route(String payload) {
+
+        RealtimeFrameSplitter.split(payload).ifPresent(frame -> {
+            switch (frame.trId()) {
+                case RealtimeTickParser.TR_ID -> RealtimeTickParser.parse(frame).forEach(priceStore::put);
+                case RealtimeIndexParser.TR_ID -> RealtimeIndexParser.parse(frame).forEach(indexStore::put);
+
+                // 구독하지 않은 TR이 섞여 들어와도 조용히 버린다.
+                default -> unknownTrLog.warn("구독하지 않은 TR의 실시간 프레임을 무시합니다. 세션: {}, tr_id: {}",
+                        sessionName, frame.trId());
+            }
+        });
     }
 
     /***

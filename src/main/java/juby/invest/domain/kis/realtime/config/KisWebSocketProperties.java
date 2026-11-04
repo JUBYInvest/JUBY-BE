@@ -30,13 +30,16 @@ public record KisWebSocketProperties(
      * @param appSecret    앱시크릿
      * @param restBaseUrl  접속키(approval_key) 발급용 REST 주소. 실전/모의 도메인이 다르다.
      * @param wsUrl        웹소켓 주소. 실전 21000, 모의 31000 포트.
+     * @param realDomain   실전 도메인 자격증명인지 여부. 모의 세션이 지원하지 않을 수 있는 TR(지수 등)을
+     *                     어느 세션에 등록할지 정하는 데 쓴다.
      */
     public record Credential(
             String name,
             String appKey,
             String appSecret,
             String restBaseUrl,
-            String wsUrl
+            String wsUrl,
+            boolean realDomain
     ) {
         /***
          * 앱키가 채워져 있는지 확인한다.

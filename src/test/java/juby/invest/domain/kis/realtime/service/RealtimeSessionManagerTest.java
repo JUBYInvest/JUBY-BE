@@ -50,10 +50,15 @@ class RealtimeSessionManagerTest {
     /*** 매니저가 세션별로 만든 핸들러. 끊김을 흉내내기 위해 붙잡아 둔다. */
     private WebSocketHandler capturedHandler;
 
+    /*** 실전 도메인 자격증명. 지수 구독은 이 세션에 고정된다. */
     private static KisWebSocketProperties.Credential credential(String name) {
+        return credential(name, true);
+    }
+
+    private static KisWebSocketProperties.Credential credential(String name, boolean realDomain) {
         return new KisWebSocketProperties.Credential(
                 name, "appkey-" + name, "secret-" + name,
-                "https://openapi.koreainvestment.com:9443", "ws://ops.koreainvestment.com:21000");
+                "https://openapi.koreainvestment.com:9443", "ws://ops.koreainvestment.com:21000", realDomain);
     }
 
     private static Stock stock(String stockCode) {
@@ -63,7 +68,7 @@ class RealtimeSessionManagerTest {
     private RealtimeSessionManager manager(List<KisWebSocketProperties.Credential> credentials) {
         return new RealtimeSessionManager(
                 new KisWebSocketProperties(credentials),
-                tokenService, new RealtimePriceStore(), stockRepository,
+                tokenService, new RealtimePriceStore(), new RealtimeIndexStore(), stockRepository,
                 new ObjectMapper(), webSocketClient, reconnectScheduler);
     }
 
@@ -102,8 +107,8 @@ class RealtimeSessionManagerTest {
         // 세션 2개 접속 + 접속키 세션당 1회 발급
         then(webSocketClient).should(times(2)).execute(any(WebSocketHandler.class), anyString());
         then(tokenService).should(times(2)).issueApprovalKey(anyString(), anyString(), anyString());
-        // 종목 5개가 세션 2개에 3/2로 나뉘어 총 5건 등록
-        then(session).should(times(5)).sendMessage(any(TextMessage.class));
+        // 종목 5건(3/2로 분할) + 지수 2건(실전 세션 고정) = 7건 등록
+        then(session).should(times(7)).sendMessage(any(TextMessage.class));
     }
 
     @Test
@@ -117,13 +122,54 @@ class RealtimeSessionManagerTest {
         manager(List.of(credential("real"))).connect();
 
         org.mockito.ArgumentCaptor<TextMessage> captor = org.mockito.ArgumentCaptor.forClass(TextMessage.class);
-        then(session).should().sendMessage(captor.capture());
+        then(session).should(times(3)).sendMessage(captor.capture());
 
-        String payload = captor.getValue().getPayload();
-        assertThat(payload).contains("H0STCNT0");
-        assertThat(payload).contains("005930");
-        assertThat(payload).contains("approval");
-        assertThat(payload).contains("\"tr_type\":\"1\"");
+        List<String> payloads = captor.getAllValues().stream().map(TextMessage::getPayload).toList();
+
+        assertThat(payloads).anySatisfy(payload -> {
+            assertThat(payload).contains("H0STCNT0");
+            assertThat(payload).contains("005930");
+            assertThat(payload).contains("approval");
+            assertThat(payload).contains("\"tr_type\":\"1\"");
+        });
+    }
+
+    @Test
+    @DisplayName("지수는 실전 세션에만 등록한다")
+    void subscribesIndicesOnRealDomainSessionOnly() throws Exception {
+
+        WebSocketSession session = givenConnectableSession();
+        given(tokenService.issueApprovalKey(anyString(), anyString(), anyString())).willReturn("approval");
+        given(stockRepository.findAll()).willReturn(List.of(stock("005930")));
+
+        // 모의 세션이 지수 TR을 지원하지 않을 수 있으므로 실전 세션에 몰아야 한다.
+        manager(List.of(credential("mock-1", false), credential("real", true))).connect();
+
+        org.mockito.ArgumentCaptor<TextMessage> captor = org.mockito.ArgumentCaptor.forClass(TextMessage.class);
+        then(session).should(atLeastOnce()).sendMessage(captor.capture());
+
+        List<String> payloads = captor.getAllValues().stream().map(TextMessage::getPayload).toList();
+
+        assertThat(payloads).filteredOn(payload -> payload.contains("H0UPCNT0")).hasSize(2);
+        assertThat(payloads).anySatisfy(payload -> assertThat(payload).contains("0001"));
+        assertThat(payloads).anySatisfy(payload -> assertThat(payload).contains("1001"));
+    }
+
+    @Test
+    @DisplayName("실전 자격증명이 없으면 지수를 구독하지 않는다")
+    void skipsIndicesWithoutRealDomainCredential() throws Exception {
+
+        WebSocketSession session = givenConnectableSession();
+        given(tokenService.issueApprovalKey(anyString(), anyString(), anyString())).willReturn("approval");
+        given(stockRepository.findAll()).willReturn(List.of(stock("005930")));
+
+        manager(List.of(credential("mock-1", false))).connect();
+
+        org.mockito.ArgumentCaptor<TextMessage> captor = org.mockito.ArgumentCaptor.forClass(TextMessage.class);
+        then(session).should(times(1)).sendMessage(captor.capture());
+
+        // 종목 1건만 등록된다. 지수는 REST 폴백이 받아낸다.
+        assertThat(captor.getValue().getPayload()).contains("H0STCNT0");
     }
 
     @Test
@@ -143,8 +189,8 @@ class RealtimeSessionManagerTest {
         // 최초 1회 + 재접속 1회
         then(tokenService).should(times(2)).issueApprovalKey(anyString(), anyString(), anyString());
         then(webSocketClient).should(times(2)).execute(any(WebSocketHandler.class), anyString());
-        // 종목 2개 등록이 두 번 (최초 + 재등록)
-        then(session).should(times(4)).sendMessage(any(TextMessage.class));
+        // (종목 2건 + 지수 2건) 등록이 두 번 (최초 + 재등록)
+        then(session).should(times(8)).sendMessage(any(TextMessage.class));
     }
 
     @Test
@@ -220,7 +266,8 @@ class RealtimeSessionManagerTest {
     void rejectsWhenNoCredentialConfigured() {
 
         KisWebSocketProperties.Credential blank = new KisWebSocketProperties.Credential(
-                "mock-2", "", "", "https://openapivts.koreainvestment.com:29443", "ws://ops.koreainvestment.com:31000");
+                "mock-2", "", "", "https://openapivts.koreainvestment.com:29443",
+                "ws://ops.koreainvestment.com:31000", false);
 
         assertThatThrownBy(() -> manager(List.of(blank)).connect())
                 .isInstanceOf(RealtimeException.class)

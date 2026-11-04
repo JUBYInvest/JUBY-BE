@@ -26,28 +26,39 @@ public class SubscriptionAllocator {
     private static final Comparator<RealtimeSubscription> DETERMINISTIC_ORDER =
             Comparator.comparing(RealtimeSubscription::trId).thenComparing(RealtimeSubscription::trKey);
 
+    /*** 구독 항목을 세션 수만큼 균등 분할한다. (고정 배정 없음) */
+    public static List<List<RealtimeSubscription>> allocate(List<RealtimeSubscription> subscriptions, int sessionCount) {
+        return allocate(subscriptions, List.of(), 0, sessionCount);
+    }
+
     /***
-     * 구독 항목을 세션 수만큼 균등 분할한다.
+     * 구독 항목을 분배한다. 일부 항목은 특정 세션에 고정할 수 있다.
+     * <p>
+     * 고정 배정이 필요한 이유: 모의투자 세션이 지원하지 않을 수 있는 TR(지수 등)을 모의 세션에 등록하면
+     * 거부도 없이 조용히 데이터가 오지 않을 수 있다. 그런 항목은 실전 세션에 몰아 둔다.
      *
-     * @param subscriptions 구독할 항목
-     * @param sessionCount  띄울 세션 수 (= 사용 가능한 자격증명 수)
+     * @param evenly             세션에 균등 분할할 항목 (종목)
+     * @param pinned             특정 세션에 고정할 항목 (지수)
+     * @param pinnedSessionIndex 고정 항목을 받을 세션 인덱스
+     * @param sessionCount       띄울 세션 수
      * @return 세션별 담당 구독 목록. 인덱스가 세션 순서와 일치한다.
      */
-    public static List<List<RealtimeSubscription>> allocate(List<RealtimeSubscription> subscriptions, int sessionCount) {
+    public static List<List<RealtimeSubscription>> allocate(
+            List<RealtimeSubscription> evenly,
+            List<RealtimeSubscription> pinned,
+            int pinnedSessionIndex,
+            int sessionCount) {
 
         if (sessionCount <= 0){
             throw new RealtimeException(RealtimeErrorCode.NO_CREDENTIAL_CONFIGURED);
         }
 
-        List<RealtimeSubscription> sorted = subscriptions.stream()
-                .distinct()
-                .sorted(DETERMINISTIC_ORDER)
-                .toList();
-
-        // 상한을 넘으면 접속 전에 터뜨린다. 조용히 넘기면 뒤쪽 항목이 영구히 구독되지 않은 채 운영된다.
-        if (sorted.size() > (long) MAX_SUBSCRIPTION_PER_SESSION * sessionCount){
-            throw new RealtimeException(RealtimeErrorCode.SUBSCRIPTION_LIMIT_EXCEEDED);
+        if (!pinned.isEmpty() && (pinnedSessionIndex < 0 || pinnedSessionIndex >= sessionCount)){
+            throw new IllegalArgumentException(
+                    "고정 배정할 세션 인덱스가 범위를 벗어났습니다. 인덱스: " + pinnedSessionIndex + ", 세션 수: " + sessionCount);
         }
+
+        List<RealtimeSubscription> sorted = sortDeterministically(evenly);
 
         int base = sorted.size() / sessionCount;
         int remainder = sorted.size() % sessionCount;
@@ -57,9 +68,29 @@ public class SubscriptionAllocator {
         for (int i = 0; i < sessionCount; i++) {
             // 나머지는 앞쪽 세션부터 한 개씩 더 받는다. (100종목 / 3세션 -> 34, 33, 33)
             int size = base + (i < remainder ? 1 : 0);
-            allocation.add(List.copyOf(sorted.subList(from, from + size)));
+            allocation.add(new ArrayList<>(sorted.subList(from, from + size)));
             from += size;
         }
-        return List.copyOf(allocation);
+
+        allocation.get(pinnedSessionIndex).addAll(sortDeterministically(pinned));
+
+        // 상한 검사는 고정분을 더한 최종 크기로 한다.
+        // 조용히 넘기면 상한을 넘긴 항목이 영구히 구독되지 않은 채 운영된다.
+        for (List<RealtimeSubscription> sessionSubscriptions : allocation) {
+            if (sessionSubscriptions.size() > MAX_SUBSCRIPTION_PER_SESSION){
+                throw new RealtimeException(RealtimeErrorCode.SUBSCRIPTION_LIMIT_EXCEEDED);
+            }
+        }
+
+        return allocation.stream()
+                .map(List::copyOf)
+                .toList();
+    }
+
+    private static List<RealtimeSubscription> sortDeterministically(List<RealtimeSubscription> subscriptions) {
+        return subscriptions.stream()
+                .distinct()
+                .sorted(DETERMINISTIC_ORDER)
+                .toList();
     }
 }

@@ -108,6 +108,44 @@ public class MarketService {
     }
 
     /***
+     * 함수 기능: 국내업종 현재지수 조회 API
+     *          <p>
+     *          실시간 지수가 없을 때의 폴백 경로다. 장외 시간에도 직전 거래일 종가 기준 지수를 응답하며,
+     *          전일대비율을 KIS가 계산해 주므로 전일 지수를 따로 조회할 필요가 없다.
+     *          <p>
+     *          모의 도메인 지원이 불확실해 실전 도메인으로 호출한다. (getDailyPrice와 같은 기준)
+     * @param indexCode 업종코드 (코스피 0001, 코스닥 1001)
+     * @return 응답 상세
+     */
+    public IndexPriceRes.Info getIndexPrice(String indexCode) throws InterruptedException {
+
+        String accessToken = tokenService.getRealAccessToken().accessToken();
+
+        IndexPriceRes response = realInvestRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/uapi/domestic-stock/v1/quotations/inquire-index-price")
+                        .queryParam("FID_COND_MRKT_DIV_CODE", "U") // 조건 시장 분류 코드. U:업종
+                        .queryParam("FID_INPUT_ISCD", indexCode)   // 입력 업종코드
+                        .build())
+                .header("content-type", "application/json; charset=utf-8")
+                .header("authorization", "Bearer " + accessToken)
+                .header("appkey", realAppKey)
+                .header("appsecret", realAppSecret)
+                .header("tr_id", "FHPUP02100000")
+                .retrieve()
+                .body(IndexPriceRes.class);
+
+        if (response == null || !"0".equals(response.rtCd()) || response.output() == null){
+            log.warn("국내업종 현재지수 조회 실패. 업종코드: {}, 사유: {}",
+                    indexCode, response == null ? "응답이 NULL" : response.message());
+            throw new MarketException(MarketErrorCode.INDEX_PRICE_FAILED);
+        }
+
+        log.info("국내업종 현재지수 조회 성공. 업종코드: {}", indexCode);
+        return response.output();
+    }
+
+    /***
      * 함수 기능: 해당 날짜가 휴장일인지 판별한다.
      *          국내휴장일조회 응답에 그 날짜가 없으면 개장일로 본다(보수적으로 스케줄러를 돌린다).
      * @param date 판별할 날짜

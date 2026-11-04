@@ -87,16 +87,19 @@ kis:
         app-secret: ${KIS_REAL_APP_SECRET}
         rest-base-url: ${kis.real.base-url}
         ws-url: "ws://ops.koreainvestment.com:21000"
+        real-domain: true
       - name: mock-1
         app-key: ${KIS_MOCK_APP_KEY}
         app-secret: ${KIS_MOCK_APP_SECRET}
         rest-base-url: ${kis.mock.base-url}
         ws-url: "ws://ops.koreainvestment.com:31000"
+        real-domain: false
       - name: mock-2
         app-key: ${KIS_MOCK2_APP_KEY:}
         app-secret: ${KIS_MOCK2_APP_SECRET:}
         rest-base-url: ${kis.mock.base-url}
         ws-url: "ws://ops.koreainvestment.com:31000"
+        real-domain: false
 
 naver:
   news:

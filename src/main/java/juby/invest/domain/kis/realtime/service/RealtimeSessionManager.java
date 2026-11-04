@@ -3,11 +3,13 @@ package juby.invest.domain.kis.realtime.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import juby.invest.domain.kis.realtime.config.KisWebSocketProperties;
+import juby.invest.domain.kis.realtime.converter.RealtimeIndexParser;
 import juby.invest.domain.kis.realtime.converter.RealtimeTickParser;
 import juby.invest.domain.kis.realtime.dto.RealtimeSubscription;
 import juby.invest.domain.kis.realtime.exception.RealtimeException;
 import juby.invest.domain.kis.realtime.exception.code.RealtimeErrorCode;
 import juby.invest.domain.kis.token.service.TokenService;
+import juby.invest.domain.marketindex.enums.MarketIndex;
 import juby.invest.domain.stock.entity.Stock;
 import juby.invest.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ import org.springframework.web.socket.client.WebSocketClient;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -28,7 +31,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /***
- * KIS 실시간 세션들의 수명을 관리한다. 접속, 종목 등록, 끊김 복구까지.
+ * KIS 실시간 세션들의 수명을 관리한다. 접속, 구독 등록(종목 체결가 + 시장 지수), 끊김 복구까지.
  * <p>
  * <b>단일 인스턴스 전용이다.</b> appkey 1개당 세션 1개만 허용되므로, 인스턴스가 2대로 늘면
  * 뒤에 붙은 쪽이 거부되거나 앞의 세션이 끊긴다. 스케일아웃하려면 세션 소유권을 한 노드로 모으는
@@ -68,7 +71,8 @@ public class RealtimeSessionManager {
 
     private final KisWebSocketProperties properties;
     private final TokenService tokenService;
-    private final RealtimePriceStore store;
+    private final RealtimePriceStore priceStore;
+    private final RealtimeIndexStore indexStore;
     private final StockRepository stockRepository;
     private final ObjectMapper objectMapper;
     private final WebSocketClient kisWebSocketClient;
@@ -97,21 +101,27 @@ public class RealtimeSessionManager {
             throw new RealtimeException(RealtimeErrorCode.NO_CREDENTIAL_CONFIGURED);
         }
 
-        List<RealtimeSubscription> subscriptions = stockRepository.findAll().stream()
+        List<RealtimeSubscription> stockSubscriptions = stockRepository.findAll().stream()
                 .map(Stock::getStockCode)
                 .map(stockCode -> new RealtimeSubscription(RealtimeTickParser.TR_ID, stockCode))
                 .toList();
 
-        if (subscriptions.isEmpty()){
-            log.warn("구독할 종목이 없어 실시간 연결을 건너뜁니다.");
+        // 지수는 실전 세션에 고정한다. 모의 세션이 지수 TR을 지원하지 않으면 거부도 없이 조용히 수신이 끊긴다.
+        int realSessionIndex = realDomainSessionIndex(credentials);
+        List<RealtimeSubscription> indexSubscriptions = indexSubscriptions(realSessionIndex);
+
+        if (stockSubscriptions.isEmpty() && indexSubscriptions.isEmpty()){
+            log.warn("구독할 항목이 없어 실시간 연결을 건너뜁니다.");
             return;
         }
 
-        // 상한을 넘으면 여기서 터진다. 일부 종목이 조용히 누락된 채 운영되는 것보다 낫다.
-        List<List<RealtimeSubscription>> allocation = SubscriptionAllocator.allocate(subscriptions, credentials.size());
+        // 상한을 넘으면 여기서 터진다. 일부 항목이 조용히 누락된 채 운영되는 것보다 낫다.
+        List<List<RealtimeSubscription>> allocation = SubscriptionAllocator.allocate(
+                stockSubscriptions, indexSubscriptions, Math.max(realSessionIndex, 0), credentials.size());
 
         shuttingDown = false;
-        log.info("실시간 세션 연결 시작. 세션 {}개, 구독 {}건", credentials.size(), subscriptions.size());
+        log.info("실시간 세션 연결 시작. 세션 {}개, 종목 {}건, 지수 {}건",
+                credentials.size(), stockSubscriptions.size(), indexSubscriptions.size());
 
         for (int i = 0; i < credentials.size(); i++) {
             if (i > 0){
@@ -121,6 +131,32 @@ public class RealtimeSessionManager {
             holders.add(holder);
             openSession(holder);
         }
+    }
+
+    /*** 실전 도메인 자격증명의 세션 인덱스. 없으면 -1 */
+    private int realDomainSessionIndex(List<KisWebSocketProperties.Credential> credentials) {
+
+        for (int i = 0; i < credentials.size(); i++) {
+            if (credentials.get(i).realDomain()){
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /***
+     * 지수 구독 목록. 실전 세션이 없으면 비어 있다(지수는 REST 폴백으로 조회된다).
+     */
+    private List<RealtimeSubscription> indexSubscriptions(int realSessionIndex) {
+
+        if (realSessionIndex < 0){
+            log.warn("실전 자격증명이 없어 지수 실시간 구독을 건너뜁니다. 지수는 REST 폴백으로 조회됩니다.");
+            return List.of();
+        }
+
+        return Arrays.stream(MarketIndex.values())
+                .map(marketIndex -> new RealtimeSubscription(RealtimeIndexParser.TR_ID, marketIndex.getCode()))
+                .toList();
     }
 
     /***
@@ -164,7 +200,7 @@ public class RealtimeSessionManager {
                     holder.credential.appSecret());
 
             WebSocketHandler handler = new RealtimePriceWebSocketHandler(
-                    sessionName, store, objectMapper, status -> onSessionClosed(holder, status));
+                    sessionName, priceStore, indexStore, objectMapper, status -> onSessionClosed(holder, status));
 
             holder.session = kisWebSocketClient.execute(handler, holder.credential.wsUrl())
                     .get(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS);

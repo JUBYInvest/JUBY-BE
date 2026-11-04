@@ -2,10 +2,13 @@ package juby.invest.domain.kis.realtime.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import juby.invest.domain.kis.realtime.config.KisWebSocketProperties;
+import juby.invest.domain.kis.realtime.converter.RealtimeIndexParser;
 import juby.invest.domain.kis.realtime.converter.RealtimeTickParser;
+import juby.invest.domain.kis.realtime.dto.RealtimeIndex;
 import juby.invest.domain.kis.realtime.dto.RealtimePrice;
 import juby.invest.domain.kis.realtime.dto.RealtimeSubscription;
 import juby.invest.domain.kis.token.service.TokenService;
+import juby.invest.domain.marketindex.enums.MarketIndex;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +19,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.WebSocketClient;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,10 +35,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <b>실제 KIS 서버에 접속하므로 CI/일반 테스트 실행에서는 제외한다(@Disabled).</b>
  * 장중(09:00~15:30)에 IDE에서 개별 실행해서 쓴다. 로컬 .env의 앱키 3쌍과, DB에 적재된 종목이 필요하다.
  * <p>
- * 이 테스트가 닫으려는 미확인 항목(이슈 #113):
+ * 이 테스트가 닫으려는 미확인 항목:
  * <ol>
- *     <li>서로 다른 appkey 3개로 세션 3개를 <b>동시에</b> 유지할 수 있는가</li>
- *     <li>모의투자 세션이 내려주는 시세가 실전과 동일한 실제 시세인가</li>
+ *     <li>서로 다른 appkey 3개로 세션 3개를 <b>동시에</b> 유지할 수 있는가 (이슈 #113)</li>
+ *     <li>모의투자 세션이 내려주는 시세가 실전과 동일한 실제 시세인가 (이슈 #113)</li>
+ *     <li>지수(H0UPCNT0) 실시간이 들어오는가</li>
+ *     <li>모의 세션도 지수 TR을 지원하는가 — 지원한다면 지수를 실전 세션에 고정할 이유가 없어진다</li>
  * </ol>
  * 성공/실패 여부만으로 판단할 수 있게, 수신 결과를 단정문 메시지에 실어 둔다.
  */
@@ -51,16 +57,54 @@ class RealtimeConnectionManualTest {
     private static final String COMPARE_TARGET = "005930";
 
     @Autowired private RealtimeSessionManager sessionManager;
-    @Autowired private RealtimePriceStore store;
+    @Autowired private RealtimePriceStore priceStore;
+    @Autowired private RealtimeIndexStore indexStore;
     @Autowired private KisWebSocketProperties properties;
     @Autowired private TokenService tokenService;
     @Autowired private WebSocketClient kisWebSocketClient;
     @Autowired private ObjectMapper objectMapper;
 
+    /*** 자격증명 1개로 세션을 직접 열고 구독 1건만 등록한다. 세션 단위로 수신 여부를 따로 보기 위한 장치. */
+    private record ManualSession(
+            WebSocketSession session,
+            RealtimePriceStore priceStore,
+            RealtimeIndexStore indexStore
+    ) {}
+
+    private ManualSession openSession(KisWebSocketProperties.Credential credential,
+                                      RealtimeSubscription subscription) throws Exception {
+
+        RealtimePriceStore sessionPriceStore = new RealtimePriceStore();
+        RealtimeIndexStore sessionIndexStore = new RealtimeIndexStore();
+
+        String approvalKey = tokenService.issueApprovalKey(
+                credential.restBaseUrl(), credential.appKey(), credential.appSecret());
+
+        WebSocketSession session = kisWebSocketClient.execute(
+                        new RealtimePriceWebSocketHandler(
+                                "manual-" + credential.name(), sessionPriceStore, sessionIndexStore,
+                                objectMapper, status -> {}),
+                        credential.wsUrl())
+                .get(10, TimeUnit.SECONDS);
+
+        session.sendMessage(new TextMessage(
+                RealtimeSessionManager.registrationMessage(objectMapper, approvalKey, "1", subscription)));
+
+        return new ManualSession(session, sessionPriceStore, sessionIndexStore);
+    }
+
     private List<KisWebSocketProperties.Credential> configuredCredentials() {
         return properties.credentials().stream()
                 .filter(KisWebSocketProperties.Credential::isConfigured)
                 .toList();
+    }
+
+    private static void closeAll(List<ManualSession> sessions) throws Exception {
+        for (ManualSession manualSession : sessions) {
+            if (manualSession.session().isOpen()){
+                manualSession.session().close();
+            }
+        }
     }
 
     @Test
@@ -75,7 +119,7 @@ class RealtimeConnectionManualTest {
             sessionManager.connect();
             Thread.sleep(RECEIVE_WINDOW.toMillis());
 
-            Map<String, RealtimePrice> received = store.findAllFresh();
+            Map<String, RealtimePrice> received = priceStore.findAllFresh();
 
             // 세션 중 하나라도 거부됐다면 그 세션 담당 종목(약 33개)이 통째로 비어 있다.
             assertThat(received.size())
@@ -89,34 +133,48 @@ class RealtimeConnectionManualTest {
     }
 
     @Test
+    @DisplayName("코스피·코스닥 지수 실시간이 들어온다")
+    void receivesIndexTicks() throws Exception {
+
+        try {
+            sessionManager.connect();
+            Thread.sleep(RECEIVE_WINDOW.toMillis());
+
+            Map<String, RealtimeIndex> received = indexStore.findAllFresh();
+
+            // 지수는 실전 세션에 고정 등록된다. 비어 있다면 실전 세션이 못 붙었거나 지수 TR 등록이 거부된 것이다.
+            assertThat(received.keySet())
+                    .as("수신한 지수: %s", received)
+                    .contains(MarketIndex.KOSPI.getCode(), MarketIndex.KOSDAQ.getCode());
+
+            // 지수가 0으로 오면 필드 자리가 어긋났다는 뜻이다.
+            assertThat(received.get(MarketIndex.KOSPI.getCode()).tick().currentIndex())
+                    .as("코스피 지수: %s", received.get(MarketIndex.KOSPI.getCode()).tick())
+                    .isGreaterThan(BigDecimal.ZERO);
+
+        } finally {
+            sessionManager.disconnect();
+        }
+    }
+
+    @Test
     @DisplayName("모의 세션과 실전 세션의 시세가 일치한다")
     void mockSessionServesSameQuoteAsReal() throws Exception {
 
         Map<String, RealtimePrice> lastPriceByCredential = new LinkedHashMap<>();
-        List<WebSocketSession> sessions = new ArrayList<>();
+        List<ManualSession> sessions = new ArrayList<>();
 
         try {
             // 자격증명마다 세션을 따로 열고, 같은 종목 1건만 구독해 서로의 시세를 비교한다.
             for (KisWebSocketProperties.Credential credential : configuredCredentials()) {
 
-                RealtimePriceStore perSessionStore = new RealtimePriceStore();
-                String approvalKey = tokenService.issueApprovalKey(
-                        credential.restBaseUrl(), credential.appKey(), credential.appSecret());
-
-                WebSocketSession session = kisWebSocketClient.execute(
-                                new RealtimePriceWebSocketHandler(
-                                        "manual-" + credential.name(), perSessionStore, objectMapper, status -> {}),
-                                credential.wsUrl())
-                        .get(10, TimeUnit.SECONDS);
-                sessions.add(session);
-
-                session.sendMessage(new TextMessage(RealtimeSessionManager.registrationMessage(
-                        objectMapper, approvalKey, "1",
-                        new RealtimeSubscription(RealtimeTickParser.TR_ID, COMPARE_TARGET))));
+                ManualSession manualSession = openSession(credential,
+                        new RealtimeSubscription(RealtimeTickParser.TR_ID, COMPARE_TARGET));
+                sessions.add(manualSession);
 
                 Thread.sleep(RECEIVE_WINDOW.toMillis() / 2);
 
-                perSessionStore.findFresh(COMPARE_TARGET)
+                manualSession.priceStore().findFresh(COMPARE_TARGET)
                         .ifPresent(price -> lastPriceByCredential.put(credential.name(), price));
             }
 
@@ -137,11 +195,44 @@ class RealtimeConnectionManualTest {
                     .isLessThan(0.01);
 
         } finally {
-            for (WebSocketSession session : sessions) {
-                if (session.isOpen()){
-                    session.close();
-                }
+            closeAll(sessions);
+        }
+    }
+
+    @Test
+    @DisplayName("모의 세션도 지수 TR을 지원한다")
+    void mockSessionSupportsIndexTr() throws Exception {
+
+        List<KisWebSocketProperties.Credential> mockCredentials = configuredCredentials().stream()
+                .filter(credential -> !credential.realDomain())
+                .toList();
+
+        assertThat(mockCredentials).as("모의 자격증명").isNotEmpty();
+
+        Map<String, BigDecimal> indexByCredential = new LinkedHashMap<>();
+        List<ManualSession> sessions = new ArrayList<>();
+
+        try {
+            for (KisWebSocketProperties.Credential credential : mockCredentials) {
+
+                ManualSession manualSession = openSession(credential,
+                        new RealtimeSubscription(RealtimeIndexParser.TR_ID, MarketIndex.KOSPI.getCode()));
+                sessions.add(manualSession);
+
+                Thread.sleep(RECEIVE_WINDOW.toMillis() / 2);
+
+                manualSession.indexStore().findFresh(MarketIndex.KOSPI.getCode())
+                        .ifPresent(index -> indexByCredential.put(credential.name(), index.tick().currentIndex()));
             }
+
+            // 이 테스트가 실패하면 "모의 세션은 지수를 주지 않는다"가 확인된 것이고,
+            // 지수를 실전 세션에 고정한 현재 설계가 맞다는 뜻이다. 통과하면 지수를 분산 배치할 수 있다.
+            assertThat(indexByCredential.keySet())
+                    .as("지수를 받은 모의 세션: %s", indexByCredential)
+                    .hasSameSizeAs(mockCredentials);
+
+        } finally {
+            closeAll(sessions);
         }
     }
 }
