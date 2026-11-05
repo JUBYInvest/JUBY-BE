@@ -23,7 +23,13 @@ public enum MemberSuccessCode implements BaseSuccessCode {
             "투자유형이 성공적으로 변경되었습니다."),
     INFO_CHANGE_OK(HttpStatus.OK,
             "MEMBER200_5",
-            "사용자 정보가 성공적으로 변경되었습니다.")
+            "사용자 정보가 성공적으로 변경되었습니다."),
+    NICKNAME_CHECK_OK(HttpStatus.OK,
+            "MEMBER200_6",
+            "닉네임 중복 확인을 완료하였습니다."),
+    NICKNAME_CHANGE_OK(HttpStatus.OK,
+            "MEMBER200_7",
+            "닉네임이 성공적으로 설정되었습니다.")
     ;
 
     private final HttpStatus status;

@@ -25,4 +25,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
         where m.id = :id and m.deletedAt is null
     """)
     Optional<Member> findActiveById(Long id);
+
+    // 본인이 이미 쓰는 닉네임은 "사용 가능"으로 본다. 탈퇴 회원은 닉네임이 비워져 있어 따로 거르지 않는다.
+    boolean existsByNicknameAndIdNot(String nickname, Long id);
 }

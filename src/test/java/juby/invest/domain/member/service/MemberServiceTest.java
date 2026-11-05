@@ -1,6 +1,7 @@
 package juby.invest.domain.member.service;
 
 import juby.invest.domain.auth.service.AuthService;
+import juby.invest.domain.member.dto.NicknameDto;
 import juby.invest.domain.member.entity.Member;
 import juby.invest.domain.member.enums.Role;
 import juby.invest.domain.member.enums.SocialType;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -24,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,6 +77,18 @@ class MemberServiceTest {
             assertThat(member.getDeletedAt()).isNotNull();
             // 주문/좋아요 같은 연관 데이터가 FK로 매달려 있어 행을 물리적으로 지울 수 없다.
             then(memberRepository).should(org.mockito.Mockito.never()).delete(member);
+        }
+
+        @Test
+        @DisplayName("탈퇴하면 닉네임을 비워 다른 회원이 쓸 수 있게 한다")
+        void releasesNickname() {
+            member.updateNickname("용감한개미");
+            given(memberRepository.findById(MEMBER_ID)).willReturn(Optional.of(member));
+
+            memberService.deleteMember(principal);
+
+            // 닉네임은 unique라, 행이 남는 soft delete에서 비우지 않으면 영원히 점유된다.
+            assertThat(member.getNickname()).isNull();
         }
 
         @Test
@@ -190,6 +205,84 @@ class MemberServiceTest {
             given(memberRepository.findActiveById(MEMBER_ID)).willReturn(Optional.of(member));
 
             assertThat(memberService.getMemberInfo(MEMBER_ID).getName()).isEqualTo("강민");
+        }
+    }
+
+    @Nested
+    @DisplayName("닉네임")
+    class Nickname {
+
+        private static final String NICKNAME = "용감한개미";
+
+        @Test
+        @DisplayName("다른 회원이 쓰지 않는 닉네임은 사용 가능하다")
+        void checkAvailable() {
+            given(memberRepository.existsByNicknameAndIdNot(NICKNAME, MEMBER_ID)).willReturn(false);
+
+            NicknameDto.CheckRes res = memberService.checkNickname(principal, NICKNAME);
+
+            assertThat(res.available()).isTrue();
+            assertThat(res.nickname()).isEqualTo(NICKNAME);
+        }
+
+        @Test
+        @DisplayName("다른 회원이 쓰는 닉네임은 사용 불가다")
+        void checkTaken() {
+            given(memberRepository.existsByNicknameAndIdNot(NICKNAME, MEMBER_ID)).willReturn(true);
+
+            assertThat(memberService.checkNickname(principal, NICKNAME).available()).isFalse();
+        }
+
+        @Test
+        @DisplayName("닉네임을 설정하면 회원에 반영되고 내 정보 조회에 노출된다")
+        void change() {
+            given(memberRepository.findActiveById(MEMBER_ID)).willReturn(Optional.of(member));
+            given(memberRepository.existsByNicknameAndIdNot(NICKNAME, MEMBER_ID)).willReturn(false);
+
+            NicknameDto.NicknameRes res = memberService.changeNickname(principal, new NicknameDto.NicknameReq(NICKNAME));
+
+            assertThat(res.nickname()).isEqualTo(NICKNAME);
+            assertThat(member.getNickname()).isEqualTo(NICKNAME);
+            assertThat(memberService.getMemberInfo(MEMBER_ID).getNickname()).isEqualTo(NICKNAME);
+        }
+
+        @Test
+        @DisplayName("다른 회원이 쓰는 닉네임이면 409로 막는다")
+        void changeRejectsDuplicate() {
+            given(memberRepository.findActiveById(MEMBER_ID)).willReturn(Optional.of(member));
+            given(memberRepository.existsByNicknameAndIdNot(NICKNAME, MEMBER_ID)).willReturn(true);
+
+            assertThatThrownBy(() -> memberService.changeNickname(principal, new NicknameDto.NicknameReq(NICKNAME)))
+                    .isInstanceOf(MemberException.class)
+                    .extracting(MemberServiceTest.this::errorCodeOf)
+                    .isEqualTo(MemberErrorCode.NICKNAME_DUPLICATED);
+
+            assertThat(member.getNickname()).isNull();
+        }
+
+        @Test
+        @DisplayName("확인 직후 다른 회원이 먼저 저장해 unique 제약에 걸려도 409로 바꾼다")
+        void changeTranslatesUniqueViolation() {
+            given(memberRepository.findActiveById(MEMBER_ID)).willReturn(Optional.of(member));
+            given(memberRepository.existsByNicknameAndIdNot(NICKNAME, MEMBER_ID)).willReturn(false);
+            willThrow(new DataIntegrityViolationException("Duplicate entry")).given(memberRepository).flush();
+
+            // 커밋 시점에 터지면 GeneralExceptionAdvice에서 500으로 빠진다.
+            assertThatThrownBy(() -> memberService.changeNickname(principal, new NicknameDto.NicknameReq(NICKNAME)))
+                    .isInstanceOf(MemberException.class)
+                    .extracting(MemberServiceTest.this::errorCodeOf)
+                    .isEqualTo(MemberErrorCode.NICKNAME_DUPLICATED);
+        }
+
+        @Test
+        @DisplayName("탈퇴 회원은 닉네임을 설정할 수 없다")
+        void changeBlockedAfterWithdrawal() {
+            given(memberRepository.findActiveById(MEMBER_ID)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() -> memberService.changeNickname(principal, new NicknameDto.NicknameReq(NICKNAME)))
+                    .isInstanceOf(MemberException.class)
+                    .extracting(MemberServiceTest.this::errorCodeOf)
+                    .isEqualTo(MemberErrorCode.MEMBER_NOT_FOUND);
         }
     }
 }

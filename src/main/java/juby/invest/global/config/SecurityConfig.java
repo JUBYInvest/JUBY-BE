@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -49,6 +50,7 @@ public class SecurityConfig {
             "/mypage.html", // mypage 정보 열람 테스트용
             "/openai-test.html", // openai 챗봇 테스트용
             "/backtest-test.html", // 백테스트 프리셋 결과 조회 테스트용
+            "/community-test.html", // 커뮤니티 게시물 테스트용
             "/api/stocks/**", // 메인 페이지 (주가), 상세 페이지 (종목 데이터, 뉴스 정보)
             "/api/auth/reissue" // AT 재발급
     };
@@ -76,6 +78,10 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests((auth) -> auth
                         .requestMatchers(allowUris).permitAll()
+                        // 댓글은 보기도 로그인한 회원만 가능하다. 먼저 맞는 규칙이 이기므로 아래 permitAll보다 앞에 둔다.
+                        .requestMatchers(HttpMethod.GET, "/api/community/posts/*/comments").authenticated()
+                        // 커뮤니티는 조회만 비로그인 허용. 작성/수정/삭제/좋아요는 아래 authenticated()에 걸린다.
+                        .requestMatchers(HttpMethod.GET, "/api/community/**").permitAll()
                         .anyRequest().authenticated())
 
                 .addFilterBefore(new JwtAuthenticationFilter(jwtUtil, authService), UsernamePasswordAuthenticationFilter.class)
