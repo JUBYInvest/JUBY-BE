@@ -34,6 +34,10 @@ public class Member {
     @Column(name = "birth")
     private LocalDate birth;
 
+    // 커뮤니티에 노출되는 이름. 실명(name) 대신 쓰며, 설정 전에는 null이다.
+    @Column(name = "nickname", unique = true, length = 10)
+    private String nickname;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
     @Builder.Default()
@@ -59,8 +63,10 @@ public class Member {
     }
 
     // 탈퇴 처리한다. 행은 남기고 탈퇴 시각만 기록한다.
+    // 닉네임은 unique라 행이 남으면 계속 점유되므로, 다른 회원이 쓸 수 있게 비운다.
     public void withdraw(){
         this.deletedAt = LocalDateTime.now();
+        this.nickname = null;
     }
 
     // 탈퇴한 회원인지 확인한다.
@@ -71,6 +77,11 @@ public class Member {
     // 회원의 투자 성향을 업데이트 한다.
     public void updatePersonality(Personality personality){
         this.personality = personality;
+    }
+
+    // 닉네임을 설정(변경)한다.
+    public void updateNickname(String nickname){
+        this.nickname = nickname;
     }
 
     public void updateInfo(ChangeMemberInfo.ChangeInfoReq dto){

@@ -4,6 +4,7 @@ import juby.invest.domain.auth.service.AuthService;
 import juby.invest.domain.member.dto.ChangeInvestType;
 import juby.invest.domain.member.dto.ChangeMemberInfo;
 import juby.invest.domain.member.dto.MemberResDto;
+import juby.invest.domain.member.dto.NicknameDto;
 import juby.invest.domain.member.entity.Member;
 import juby.invest.domain.member.entity.Personality;
 import juby.invest.domain.member.exception.MemberException;
@@ -14,6 +15,7 @@ import juby.invest.domain.member.repository.MemberRepository;
 import juby.invest.domain.member.repository.PersonalityRepository;
 import juby.invest.global.security.entity.CustomOAuth2User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,7 @@ public class MemberService {
 
         return MemberResDto.MemberInfo.builder()
                 .name(member.getName())
+                .nickname(member.getNickname())
                 .email(member.getEmail())
                 .birth(member.getBirth())
                 .socialType(member.getSocialType())
@@ -108,6 +111,54 @@ public class MemberService {
 
         return ChangeMemberInfo.ChangeInfoRes.builder()
                 .modifiedDate(LocalDateTime.now())
+                .build();
+    }
+
+    /***
+     * 함수 기능: 닉네임을 쓸 수 있는지 확인한다. 본인이 이미 쓰는 닉네임은 사용 가능으로 본다.
+     * @param principal 회원 인증 객체
+     * @param nickname 확인할 닉네임
+     * @return 사용 가능 여부
+     */
+    public NicknameDto.CheckRes checkNickname(CustomOAuth2User principal, String nickname) {
+
+        boolean available = !memberRepository.existsByNicknameAndIdNot(nickname, principal.getId());
+
+        return NicknameDto.CheckRes.builder()
+                .nickname(nickname)
+                .available(available)
+                .build();
+    }
+
+    /***
+     * 함수 기능: 닉네임을 설정(변경)한다.
+     * @param principal 회원 인증 객체
+     * @param dto 설정할 닉네임
+     * @return 설정된 닉네임
+     */
+    @Transactional
+    public NicknameDto.NicknameRes changeNickname(CustomOAuth2User principal, NicknameDto.NicknameReq dto) {
+
+        Member member = memberRepository.findActiveById(principal.getId())
+                .orElseThrow(() -> new MemberException(MemberErrorCode.MEMBER_NOT_FOUND));
+
+        if (memberRepository.existsByNicknameAndIdNot(dto.nickname(), member.getId())) {
+            throw new MemberException(MemberErrorCode.NICKNAME_DUPLICATED);
+        }
+
+        member.updateNickname(dto.nickname());
+
+        // 중복 확인과 저장 사이에 다른 회원이 같은 닉네임을 먼저 저장하면 unique 제약에 걸린다.
+        // 커밋 시점까지 미루면 500으로 빠지므로, 여기서 flush해 중복 에러로 바꾼다.
+        try {
+            memberRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new MemberException(MemberErrorCode.NICKNAME_DUPLICATED);
+        }
+
+        return NicknameDto.NicknameRes.builder()
+                .nickname(member.getNickname())
+                .modifiedAt(LocalDateTime.now())
                 .build();
     }
 }

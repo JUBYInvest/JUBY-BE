@@ -3,9 +3,11 @@ package juby.invest.domain.member.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import juby.invest.domain.member.dto.ChangeInvestType;
 import juby.invest.domain.member.dto.ChangeMemberInfo;
 import juby.invest.domain.member.dto.MemberResDto;
+import juby.invest.domain.member.dto.NicknameDto;
 import juby.invest.domain.member.exception.code.member.MemberSuccessCode;
 import juby.invest.domain.member.service.MemberService;
 import juby.invest.global.apiPayload.ApiResponse;
@@ -45,6 +47,24 @@ public class MemberController {
     ){
         BaseSuccessCode successCode = MemberSuccessCode.INFO_CHANGE_OK;
         return ApiResponse.onSuccess(successCode, memberService.changeMemberInfo(principal, dto));
+    }
+
+    @Operation(summary = "닉네임 중복 확인", description = "닉네임 형식과 사용 가능 여부를 확인한다. 본인이 쓰는 닉네임은 사용 가능으로 본다.")
+    @GetMapping("/nickname/check")
+    public ApiResponse<NicknameDto.CheckRes> checkNickname(
+            @AuthenticationPrincipal CustomOAuth2User principal,
+            @RequestParam @Pattern(regexp = NicknameDto.REGEX, message = NicknameDto.MESSAGE) String nickname
+    ){
+        return ApiResponse.onSuccess(MemberSuccessCode.NICKNAME_CHECK_OK, memberService.checkNickname(principal, nickname));
+    }
+
+    @Operation(summary = "닉네임 설정", description = "커뮤니티에서 쓸 닉네임을 설정(변경)한다.")
+    @PatchMapping("/me/nickname")
+    public ApiResponse<NicknameDto.NicknameRes> changeNickname(
+            @AuthenticationPrincipal CustomOAuth2User principal,
+            @Valid @RequestBody NicknameDto.NicknameReq dto
+    ){
+        return ApiResponse.onSuccess(MemberSuccessCode.NICKNAME_CHANGE_OK, memberService.changeNickname(principal, dto));
     }
 
     @Operation(summary = "내 투자유형 보기", description = "회원가입 시 진행한 투자성향테스트 결과를 반환한다.")

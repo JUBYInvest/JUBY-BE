@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>커뮤니티 테스트</title>
+    <style>
+        * { box-sizing: border-box; }
+        /* display를 지정한 요소(.modal-bg 등)는 hidden 속성이 무시되므로 항상 숨기도록 강제한다. */
+        [hidden] { display: none !important; }
+        :root {
+            --green: #1b5e35; --green-soft: #eaf6ee; --line: #e5e8eb; --muted: #8b95a1;
+            --text: #191f28; --up: #f04452; --down: #3182f6;
+        }
+        body { font-family: "Pretendard", -apple-system, "Malgun Gothic", sans-serif; margin: 0; background: #fff; color: var(--text); }
+        button { cursor: pointer; padding: 6px 12px; border: 1px solid #d1d6db; background: #fff; border-radius: 8px; font: inherit; }
+        button.primary { background: var(--green); border-color: var(--green); color: #fff; }
+        button.danger { color: #d33; }
+        button:disabled { opacity: .5; cursor: default; }
+        input, textarea { width: 100%; padding: 12px 14px; border: 1px solid var(--line); background: #f2f4f6; border-radius: 10px; font: inherit; }
+        textarea { min-height: 160px; resize: vertical; }
+
+        .token-bar { display: flex; gap: 8px; align-items: center; padding: 8px 16px; background: #222; color: #fff; flex-wrap: wrap; font-size: 13px; }
+        .token-bar input { flex: 1; min-width: 200px; padding: 6px 8px; background: #fff; }
+        .token-bar .status { color: #9ad; }
+
+        .gnb { background: var(--green); color: #fff; padding: 0 16px; display: flex; gap: 28px; align-items: center; height: 56px; overflow-x: auto; }
+        .gnb .logo { font-weight: 800; letter-spacing: 2px; font-size: 20px; }
+        .gnb span { opacity: .8; white-space: nowrap; }
+        .gnb .active { opacity: 1; font-weight: bold; border-bottom: 3px solid #6fe39a; padding-bottom: 4px; }
+
+        .layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 32px; padding: 24px 16px; max-width: 1280px; margin: 0 auto; }
+        @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+        h1 { font-size: 28px; margin: 0 0 20px; }
+        h2 { font-size: 20px; margin: 0 0 12px; }
+        .muted { color: var(--muted); font-size: 13px; }
+        .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+        .row > input { flex: 1; }
+
+        /* 탭 */
+        .tabs { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+        .tab { border: none; background: #f2f4f6; color: #4e5968; padding: 10px 20px; border-radius: 999px; font-weight: bold; }
+        .tab.active { background: var(--text); color: #fff; }
+        .tabs .sort-label { margin-left: auto; color: var(--muted); font-size: 14px; }
+
+        /* 종목 카드 */
+        .cards { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; }
+        .card { flex: 0 0 150px; border: 1px solid var(--line); border-radius: 12px; padding: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; background: #fff; text-align: left; }
+        .card:hover { border-color: #b0b8c1; }
+        .card.active { border: 2px solid #2e9d5b; background: var(--green-soft); padding: 13px; }
+        .card .icon { width: 30px; height: 30px; border-radius: 50%; background: #f2f4f6; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; color: #4e5968; }
+        .card .name { font-size: 15px; min-height: 40px; word-break: keep-all; }
+        .card .bottom { display: flex; justify-content: space-between; font-size: 14px; }
+        .card.active .count { color: #2e9d5b; font-weight: bold; }
+        .as-of { margin: 6px 0 4px; }
+
+        .rate-up { color: var(--up); }
+        .rate-down { color: var(--down); }
+        .rate-flat { color: var(--muted); }
+
+        /* 다른 종목 찾기 */
+        .stock-picker { position: relative; flex: 1; }
+        .suggestions { position: absolute; z-index: 10; top: 100%; left: 0; right: 0; margin: 2px 0 0; padding: 0; list-style: none; background: #fff; border: 1px solid #ccc; border-radius: 8px; max-height: 220px; overflow-y: auto; }
+        .suggestions li { padding: 8px 12px; cursor: pointer; }
+        .suggestions li:hover { background: var(--green-soft); }
+        .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--green-soft); color: var(--green); border-radius: 999px; font-size: 14px; }
+        .chip button { border: none; background: none; padding: 0; color: inherit; }
+
+        /* 게시물 목록 */
+        .post { border-bottom: 1px solid var(--line); padding: 20px 4px; cursor: pointer; }
+        .post:hover { background: #fafbfc; }
+        .post.selected { background: var(--green-soft); }
+        .post .stock-line { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-weight: bold; font-size: 15px; }
+        .post .stock-line .icon { width: 26px; height: 26px; border-radius: 50%; background: #f2f4f6; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #4e5968; }
+        .post .title { font-weight: bold; font-size: 18px; margin-bottom: 6px; }
+        .post .preview { color: #6b7684; white-space: pre-wrap; word-break: break-all; }
+        .post .footer { display: flex; align-items: center; gap: 16px; margin-top: 14px; color: #4e5968; font-size: 14px; }
+        .post .footer .writer { margin-left: auto; font-weight: bold; color: var(--text); }
+        .post .footer .time { color: var(--muted); }
+        .liked { color: var(--up); }
+
+        /* 오른쪽 */
+        .side { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+        .side section { border-top: 2px solid var(--text); padding-top: 16px; }
+        .label-row { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0 8px; font-weight: bold; font-size: 14px; }
+        .label-row .muted { font-weight: normal; }
+        .pick-btn { background: #f2f4f6; border: none; color: var(--muted); padding: 12px 16px; border-radius: 10px; font-weight: bold; }
+
+        /* 글쓰기 화면 */
+        .write-page { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
+        .write-page h1 { padding-bottom: 20px; border-bottom: 2px solid var(--text); }
+        .notice { background: #f2f4f6; border-radius: 10px; padding: 16px 20px; margin: 24px 0 8px; font-size: 14px; }
+        .write-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+        .write-actions button { padding: 12px 24px; border-radius: 10px; font-weight: bold; }
+        .fab { position: fixed; right: 24px; bottom: 24px; padding: 14px 24px; border-radius: 999px; border: none; background: var(--text); color: #fff; font-size: 16px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+
+        .detail .content { white-space: pre-wrap; word-break: break-all; margin: 12px 0; line-height: 1.6; }
+        .detail .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        .comments { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+        .comments h3 { margin: 0 0 8px; font-size: 15px; }
+        .comment { padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+        .comment .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+        .comment .body { white-space: pre-wrap; word-break: break-all; margin: 4px 0 6px; font-size: 14px; }
+        .comment .actions { display: flex; gap: 6px; }
+        .comment .actions button { padding: 2px 8px; font-size: 12px; }
+        .comment-form { display: flex; gap: 8px; margin-top: 10px; align-items: flex-end; }
+        .comment-form textarea { min-height: 60px; flex: 1; }
+
+        pre.log { background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 8px; font-size: 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-all; margin: 0; }
+
+        .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .modal { background: #fff; border-radius: 12px; padding: 20px; width: 100%; max-width: 360px; }
+        .modal h3 { margin: 0 0 8px; }
+        .hint-ok { color: #1b9a4b; font-size: 13px; }
+        .hint-bad { color: #d33; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+<div class="token-bar">
+    <span>accessToken</span>
+    <input id="accessToken" placeholder="소셜로그인 후 발급받은 accessToken 붙여넣기 (비워두면 비로그인으로 조회)">
+    <button onclick="saveToken()">저장</button>
+    <span class="status" id="tokenStatus"></span>
+</div>
+
+<!-- 실제 서비스의 상단 메뉴를 흉내낸다. 이 페이지는 "커뮤니티" 메뉴 화면이다. -->
+<nav class="gnb">
+    <span class="logo">JUBY</span>
+    <span>홈</span><span>관심종목</span><span>주식 백테스트</span><span>AI 주가분석</span>
+    <span class="active">커뮤니티</span><span>사용설명서</span>
+</nav>
+
+<!-- 목록 화면 (#) -->
+<div class="layout" id="listView">
+    <!-- 왼쪽: 목록 -->
+    <main>
+        <h1>커뮤니티</h1>
+
+        <div class="tabs">
+            <button class="tab active" id="tabLatest" onclick="setTab('latest')">🕒 최신</button>
+            <button class="tab" id="tabPopular" onclick="setTab('popular')">🔥 인기</button>
+            <span class="sort-label" id="sortLabel">새로 올라온 순</span>
+        </div>
+
+        <div class="cards" id="cards"></div>
+        <div class="muted as-of" id="asOf"></div>
+
+        <div class="row" style="margin-top:12px">
+            <div class="stock-picker">
+                <input id="stockSearch" autocomplete="off" placeholder="카드에 없는 종목 찾기 (예: 삼성)">
+                <ul id="stockSuggestions" class="suggestions" hidden></ul>
+            </div>
+            <span id="filterChip" hidden></span>
+        </div>
+
+        <div id="feed"></div>
+        <div class="row" style="justify-content:center; margin-top:16px">
+            <button id="moreBtn" onclick="loadMore()" hidden>더 보기</button>
+        </div>
+    </main>
+
+    <!-- 오른쪽: 내 정보 / 상세 / 로그 -->
+    <div class="side">
+        <section>
+            <h2>내 정보</h2>
+            <div id="meBox" class="muted">토큰을 저장하면 표시됩니다.</div>
+            <div class="row" style="margin-top:8px">
+                <button onclick="openNicknameModal()">닉네임 설정/변경</button>
+            </div>
+        </section>
+
+        <section class="detail" id="detailPanel" hidden>
+            <h2>게시물 상세</h2>
+            <div id="detailBox"></div>
+            <div class="comments">
+                <h3 id="commentTitle">댓글</h3>
+                <div id="commentList"></div>
+                <div class="row" style="justify-content:center; margin-top:8px">
+                    <button id="moreCommentBtn" onclick="loadMoreComments()" hidden>댓글 더 보기</button>
+                </div>
+                <div class="comment-form">
+                    <textarea id="commentInput" placeholder="댓글 (500자 이하)" maxlength="500"></textarea>
+                    <button class="primary" onclick="onClickComment()">등록</button>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>마지막 API 응답</h2>
+            <pre class="log" id="log">아직 요청 없음</pre>
+        </section>
+    </div>
+
+    <button class="fab" onclick="onClickWrite()">✏️ 글쓰기</button>
+</div>
+
+<!-- 글쓰기 화면 (#write). 실제 프론트에서는 별도 페이지(라우트)가 된다. -->
+<div class="write-page" id="writeView" hidden>
+    <h1>글쓰기</h1>
+    <div class="notice">배운 것, 궁금한 것을 나눠 보세요. 종목을 사라·팔라 권하는 글은 올리지 않아요.</div>
+
+    <div class="label-row"><span>종목 <span class="muted">(고르지 않아도 돼요)</span></span></div>
+    <div class="row">
+        <span id="writeStockChip"></span>
+        <div class="stock-picker" id="writeStockPicker" hidden>
+            <input id="writeStockSearch" autocomplete="off" placeholder="종목 검색 (예: 삼성)">
+            <ul id="writeStockSuggestions" class="suggestions" hidden></ul>
+        </div>
+    </div>
+
+    <div class="label-row"><span>제목</span><span class="muted" id="titleCount">0/40</span></div>
+    <input id="writeTitle" placeholder="무엇에 대한 글인지 한 줄로" maxlength="40">
+
+    <div class="label-row"><span>내용</span><span class="muted" id="contentCount">0/1000</span></div>
+    <textarea id="writeContent" placeholder="배운 것, 궁금한 것을 나눠 보세요. 종목을 사라·팔라 권하는 글은 올리지 않아요." maxlength="1000" style="min-height:320px"></textarea>
+
+    <div class="write-actions">
+        <button onclick="cancelWrite()">취소</button>
+        <button class="primary" onclick="submitPost()">올리기</button>
+    </div>
+</div>
+
+<!-- 로그인 안내 팝업: 비로그인으로 글쓰기/댓글/좋아요를 누르면 뜬다 -->
+<div class="modal-bg" id="loginModal" hidden>
+    <div class="modal">
+        <h3>로그인이 필요해요</h3>
+        <p class="muted" style="margin-top:0" id="loginModalText"></p>
+        <p class="muted">테스트 페이지에서는 위쪽 accessToken 칸에 토큰을 넣고 [저장]을 누르면 로그인한 상태가 됩니다.</p>
+        <div class="row" style="justify-content:flex-end; margin-top:12px">
+            <button onclick="closeLoginModal()">닫기</button>
+            <button class="primary" onclick="goToTokenInput()">토큰 입력하기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 닉네임 설정 팝업: 실제 프론트에서 "닉네임 없이 글쓰기 클릭" 시 뜨는 팝업을 흉내낸다 -->
+<div class="modal-bg" id="nicknameModal" hidden>
+    <div class="modal">
+        <h3>닉네임 설정</h3>
+        <p class="muted" style="margin-top:0">커뮤니티에서 쓸 닉네임을 정해주세요. (한글/영문/숫자 2~10자)</p>
+        <div class="row">
+            <input id="nicknameInput" maxlength="10" placeholder="예: 용감한개미">
+            <button onclick="checkNickname()">중복 확인</button>
+        </div>
+        <div id="nicknameHint" class="muted">&nbsp;</div>
+        <div class="row" style="justify-content:flex-end; margin-top:12px">
+            <button onclick="closeNicknameModal()">취소</button>
+            <button class="primary" onclick="saveNickname()">저장</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const TOKEN_KEY = "community-test-token";
+    let me = null;               // /api/members/me 결과 (비로그인이면 null)
+    let tab = "latest";          // "latest" | "popular"
+    let filterStock = null;      // { stockCode, stockName } | null(전체)
+    let board = null;            // /api/community/stocks 결과
+    let cursor = null;           // 최신: { cursor } / 인기: { cursorLikeCount, cursorId }
+    const feedPosts = new Map(); // postId -> 목록 응답의 게시물 (상세 갱신 시 등락률/미리보기 유지용)
+    let selectedPostId = null;
+    let commentCursor = null;
+    let afterNicknameSaved = null; // 닉네임 저장 후 이어서 할 동작 (예: 글 작성)
+
+    // ===== accessToken =====
+    function getToken() {
+        return document.getElementById("accessToken").value.trim();
+    }
+    function saveToken() {
+        try { localStorage.setItem(TOKEN_KEY, getToken()); } catch (e) {}
+        document.getElementById("tokenStatus").textContent = getToken() ? "저장됨" : "비로그인";
+        loadMe();
+        reloadFeed();
+        if (selectedPostId) reloadComments();
+    }
+
+    // ===== 공통 =====
+    // 토큰이 있으면 항상 실어 보낸다. 조회 API는 토큰이 있으면 likedByMe/isMine을 채워준다.
+    async function api(method, path, body) {
+        const headers = { "Content-Type": "application/json" };
+        const token = getToken();
+        if (token) headers["Authorization"] = "Bearer " + token;
+
+        const response = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+        let data;
+        try { data = await response.json(); } catch (e) { data = { isSuccess: false, message: "JSON 아님 (HTTP " + response.status + ")" }; }
+
+        document.getElementById("log").textContent =
+            method + " " + path + "\nHTTP " + response.status + "\n\n" + JSON.stringify(data, null, 2);
+        return data;
+    }
+
+    function fail(data) {
+        alert("[" + (data.code || "ERROR") + "] " + (data.message || "요청 실패")
+            + (data.result && typeof data.result === "object" ? "\n" + JSON.stringify(data.result) : ""));
+    }
+
+    function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text; // 사용자 입력은 항상 textContent로 넣는다 (XSS 방지)
+        return node;
+    }
+
+    function formatTime(iso) {
+        return iso ? iso.replace("T", " ").substring(0, 16) : "";
+    }
+
+    // "방금", "4분 전", "11시간 전", "3일 전", 그보다 오래되면 날짜
+    function relativeTime(iso) {
+        if (!iso) return "";
+        const diffSec = (Date.now() - new Date(iso).getTime()) / 1000;
+        if (diffSec < 60) return "방금";
+        if (diffSec < 3600) return Math.floor(diffSec / 60) + "분 전";
+        if (diffSec < 86400) return Math.floor(diffSec / 3600) + "시간 전";
+        if (diffSec < 86400 * 7) return Math.floor(diffSec / 86400) + "일 전";
+        return iso.substring(0, 10);
+    }
+
+    // 등락률: 오르면 빨강 +, 내리면 파랑, 없으면 빈 칸
+    function rateEl(rate) {
+        if (rate === null || rate === undefined) return el("span", "rate-flat", "");
+        const cls = rate > 0 ? "rate-up" : rate < 0 ? "rate-down" : "rate-flat";
+        return el("span", cls, (rate > 0 ? "+" : "") + rate.toFixed(2) + "%");
+    }
+
+    function iconEl(cls, name) {
+        return el("span", cls, name ? name.charAt(0) : "");
+    }
+
+    // ===== 로그인 안내 =====
+    // 보기는 비로그인도 되지만, 쓰기 동작(글/댓글/좋아요)은 로그인이 필요하다. 로그인돼 있으면 true.
+    function requireLogin(action) {
+        if (getToken()) return true;
+        document.getElementById("loginModalText").textContent = action + " 로그인한 회원만 이용할 수 있어요.";
+        document.getElementById("loginModal").hidden = false;
+        return false;
+    }
+    function closeLoginModal() {
+        document.getElementById("loginModal").hidden = true;
+    }
+    function goToTokenInput() {
+        closeLoginModal();
+        const input = document.getElementById("accessToken");
+        input.scrollIntoView({ block: "center" });
+        input.focus();
+    }
+
+    // ===== 화면 전환 (#: 목록, #write: 글쓰기) =====
+    // 주소의 # 뒤를 바꿔 화면을 바꾸므로 브라우저 뒤로가기로 목록에 돌아올 수 있다.
+    let cameFromList = false; // 목록에서 [글쓰기]로 들어왔는지 (그래야 뒤로가기로 목록에 돌아갈 수 있다)
+
+    function route() {
+        const writing = location.hash === "#write";
+        if (!writing) cameFromList = false;
+        if (writing && !getToken()) {
+            // 주소로 바로 들어와도 비로그인이면 목록으로 돌려보낸다.
+            history.replaceState(null, "", location.pathname);
+            route();
+            requireLogin("글쓰기는");
+            return;
+        }
+        document.getElementById("listView").hidden = writing;
+        document.getElementById("writeView").hidden = !writing;
+        window.scrollTo(0, 0);
+    }
+    window.addEventListener("hashchange", route);
+
+    function goList() {
+        if (cameFromList) {
+            history.back();
+            return;
+        }
+        // #write 주소로 바로 들어온 경우 뒤로가기를 하면 페이지를 벗어나므로 주소만 바꾼다.
+        history.replaceState(null, "", location.pathname);
+        route();
+    }
+
+    // ===== 내 정보 / 닉네임 =====
+    async function loadMe() {
+        const box = document.getElementById("meBox");
+        me = null;
+        if (!getToken()) {
+            box.textContent = "비로그인 상태입니다. 조회만 가능합니다.";
+            return;
+        }
+        const data = await api("GET", "/api/members/me");
+        if (!data.isSuccess) {
+            box.textContent = "내 정보 조회 실패: " + data.message;
+            return;
+        }
+        me = data.result;
+        box.textContent = "";
+        box.append(
+            el("div", "", "이름(실명, 비공개): " + (me.name ?? "-")),
+            el("div", me.nickname ? "" : "hint-bad",
+                "닉네임: " + (me.nickname ?? "미설정 → 글쓰기 시 팝업이 뜹니다"))
+        );
+    }
+
+    function openNicknameModal(after) {
+        if (!getToken()) { alert("로그인(토큰 저장)이 필요합니다."); return; }
+        afterNicknameSaved = after || null;
+        document.getElementById("nicknameInput").value = me?.nickname ?? "";
+        setNicknameHint("", "muted");
+        document.getElementById("nicknameModal").hidden = false;
+        document.getElementById("nicknameInput").focus();
+    }
+    function closeNicknameModal() {
+        document.getElementById("nicknameModal").hidden = true;
+        afterNicknameSaved = null;
+    }
+    function setNicknameHint(text, cls) {
+        const hint = document.getElementById("nicknameHint");
+        hint.className = cls;
+        hint.textContent = text || " ";
+    }
+
+    async function checkNickname() {
+        const nickname = document.getElementById("nicknameInput").value.trim();
+        const data = await api("GET", "/api/members/nickname/check?nickname=" + encodeURIComponent(nickname));
+        if (!data.isSuccess) {
+            const reason = data.result && typeof data.result === "object" ? Object.values(data.result)[0] : data.message;
+            setNicknameHint(reason, "hint-bad");
+            return;
+        }
+        setNicknameHint(data.result.available ? "사용 가능한 닉네임입니다." : "이미 사용 중인 닉네임입니다.",
+            data.result.available ? "hint-ok" : "hint-bad");
+    }
+
+    async function saveNickname() {
+        const nickname = document.getElementById("nicknameInput").value.trim();
+        const data = await api("PATCH", "/api/members/me/nickname", { nickname });
+        if (!data.isSuccess) {
+            const reason = data.result && typeof data.result === "object" ? Object.values(data.result)[0] : data.message;
+            setNicknameHint(reason, "hint-bad");
+            return;
+        }
+        const next = afterNicknameSaved;
+        closeNicknameModal();
+        await loadMe();
+        if (next) next();
+    }
+
+    // ===== 종목 검색 (카드에 없는 종목 필터, 글쓰기 종목 고르기에서 같이 쓴다) =====
+    function attachStockPicker(inputId, listId, onSelect) {
+        const input = document.getElementById(inputId);
+        const list = document.getElementById(listId);
+        let timer = null;
+
+        input.addEventListener("input", () => {
+            clearTimeout(timer);
+            const keyword = input.value.trim();
+            if (!keyword) { list.hidden = true; return; }
+            timer = setTimeout(async () => {
+                const response = await fetch("/api/stocks/search?keyword=" + encodeURIComponent(keyword));
+                const data = await response.json();
+                list.innerHTML = "";
+                (data.result || []).forEach(stock => {
+                    const li = el("li", "", stock.stockName + " (" + stock.stockCode + ")");
+                    li.onclick = () => {
+                        input.value = "";
+                        list.hidden = true;
+                        onSelect(stock);
+                    };
+                    list.append(li);
+                });
+                list.hidden = !(data.result && data.result.length);
+            }, 200);
+        });
+        document.addEventListener("click", e => {
+            if (!input.parentElement.contains(e.target)) list.hidden = true;
+        });
+    }
+
+    // ===== 탭 / 종목 카드 =====
+    function setTab(next) {
+        tab = next;
+        document.getElementById("tabLatest").classList.toggle("active", tab === "latest");
+        document.getElementById("tabPopular").classList.toggle("active", tab === "popular");
+        document.getElementById("sortLabel").textContent = tab === "latest" ? "새로 올라온 순" : "이번 주 좋아요 순";
+        reloadFeed();
+    }
+
+    function selectStock(stock) {
+        filterStock = stock;
+        renderCards();
+        reloadFeed();
+    }
+
+    async function loadBoard() {
+        const data = await api("GET", "/api/community/stocks");
+        if (!data.isSuccess) { fail(data); return; }
+        board = data.result;
+        renderCards();
+    }
+
+    function renderCards() {
+        const cards = document.getElementById("cards");
+        cards.innerHTML = "";
+        if (!board) return;
+
+        const all = el("button", "card" + (filterStock ? "" : " active"));
+        const allBottom = el("div", "bottom");
+        allBottom.append(el("span", "count", "글 " + board.totalPostCount));
+        all.append(el("span", "icon", "≡"), el("div", "name", "전체"), allBottom);
+        all.onclick = () => selectStock(null);
+        cards.append(all);
+
+        board.stocks.forEach(stock => {
+            const active = filterStock && filterStock.stockCode === stock.stockCode;
+            const card = el("button", "card" + (active ? " active" : ""));
+            const bottom = el("div", "bottom");
+            bottom.append(el("span", "count", "글 " + stock.postCount), rateEl(stock.changeRate));
+            card.append(iconEl("icon", stock.stockName), el("div", "name", stock.stockName), bottom);
+            card.onclick = () => selectStock({ stockCode: stock.stockCode, stockName: stock.stockName });
+            cards.append(card);
+        });
+
+        document.getElementById("asOf").textContent = board.priceAsOf
+            ? new Date(board.priceAsOf).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) + " 기준 등락률이에요"
+            : "";
+
+        // 카드에 없는 종목으로 거르고 있으면 칩으로 보여준다.
+        const chip = document.getElementById("filterChip");
+        const inCards = filterStock && board.stocks.some(s => s.stockCode === filterStock.stockCode);
+        chip.hidden = !filterStock || inCards;
+        if (!chip.hidden) {
+            chip.className = "chip";
+            chip.textContent = filterStock.stockName + " ";
+            const x = el("button", "", "✕");
+            x.onclick = () => selectStock(null);
+            chip.append(x);
+        }
+    }
+
+    attachStockPicker("stockSearch", "stockSuggestions", stock => selectStock(stock));
+
+    // ===== 목록 =====
+    async function reloadFeed() {
+        cursor = null;
+        feedPosts.clear();
+        document.getElementById("feed").innerHTML = "";
+        await loadMore();
+    }
+
+    async function loadMore() {
+        const params = new URLSearchParams({ size: "10" });
+        if (filterStock) params.set("stockCode", filterStock.stockCode);
+        if (cursor) Object.entries(cursor).forEach(([k, v]) => params.set(k, v));
+
+        const path = tab === "latest" ? "/api/community/posts?" : "/api/community/posts/popular?";
+        const data = await api("GET", path + params);
+        if (!data.isSuccess) { fail(data); return; }
+
+        const feed = document.getElementById("feed");
+        const { posts, hasNext } = data.result;
+        if (!posts.length && !feed.children.length) {
+            feed.append(el("div", "muted", tab === "latest" ? "아직 글이 없어요." : "이번 주에 올라온 글이 없어요."));
+        }
+        posts.forEach(post => {
+            feedPosts.set(post.postId, post);
+            feed.append(renderPostItem(post));
+        });
+        cursor = !hasNext ? null
+            : tab === "latest" ? { cursor: data.result.nextCursor }
+            : { cursorLikeCount: data.result.nextCursorLikeCount, cursorId: data.result.nextCursorId };
+        document.getElementById("moreBtn").hidden = !hasNext;
+    }
+
+    function renderPostItem(post) {
+        const item = el("div", "post" + (post.postId === selectedPostId ? " selected" : ""));
+        item.dataset.postId = post.postId;
+
+        // 종목을 고른 글만 종목 줄을 보여준다.
+        if (post.stockCode) {
+            const stockLine = el("div", "stock-line");
+            stockLine.append(iconEl("icon", post.stockName), el("span", "", post.stockName), rateEl(post.changeRate));
+            item.append(stockLine);
+        }
+
+        const footer = el("div", "footer");
+        footer.append(
+            el("span", post.likedByMe ? "liked" : "", (post.likedByMe ? "♥ " : "♡ ") + post.likeCount),
+            el("span", "", "💬 " + post.commentCount),
+            el("span", "writer", post.writerNickname + (post.isMine ? " (나)" : "")),
+            el("span", "time", relativeTime(post.createdAt) + (post.isEdited ? " · 수정됨" : "")),
+        );
+
+        item.append(el("div", "title", post.title), el("div", "preview", post.preview), footer);
+        item.onclick = () => openDetail(post.postId);
+        return item;
+    }
+
+    // ===== 상세 =====
+    async function openDetail(postId) {
+        const data = await api("GET", "/api/community/posts/" + postId);
+        if (!data.isSuccess) { fail(data); return; }
+        selectedPostId = postId;
+        document.querySelectorAll(".post").forEach(p =>
+            p.classList.toggle("selected", Number(p.dataset.postId) === postId));
+        renderDetail(data.result);
+        await reloadComments();
+        return data.result;
+    }
+
+    // 좋아요/댓글 수가 바뀐 뒤 상세와 목록의 숫자만 다시 맞춘다. (댓글 목록은 그대로 둔다)
+    async function refreshPost(postId) {
+        const data = await api("GET", "/api/community/posts/" + postId);
+        if (!data.isSuccess) { fail(data); return; }
+        renderDetail(data.result);
+        const old = feedPosts.get(postId);
+        const item = document.querySelector('.post[data-post-id="' + postId + '"]');
+        if (old && item) {
+            // 상세에는 미리보기와 등락률이 없으므로 목록에서 받은 값을 유지한다.
+            const merged = { ...old, ...data.result, preview: old.preview, changeRate: old.changeRate };
+            feedPosts.set(postId, merged);
+            item.replaceWith(renderPostItem(merged));
+        }
+    }
+
+    function renderDetail(post) {
+        const panel = document.getElementById("detailPanel");
+        const box = document.getElementById("detailBox");
+        panel.hidden = false;
+        box.innerHTML = "";
+
+        const meta = el("div", "muted");
+        if (post.stockName) meta.append(el("b", "", post.stockName + " · "));
+        meta.append(post.writerNickname + " · " + formatTime(post.createdAt)
+            + (post.isEdited ? " (수정됨 " + formatTime(post.updatedAt) + ")" : ""));
+
+        const likeBtn = el("button", post.likedByMe ? "liked" : "", (post.likedByMe ? "♥ " : "♡ ") + post.likeCount);
+        likeBtn.onclick = () => toggleLike(post.postId);
+
+        const actions = el("div", "actions");
+        actions.append(likeBtn, el("span", "muted", "댓글 " + post.commentCount));
+
+        if (post.isMine) {
+            const editBtn = el("button", "", "수정");
+            editBtn.onclick = () => renderEditForm(post);
+            const delBtn = el("button", "danger", "삭제");
+            delBtn.onclick = () => deletePost(post.postId);
+            actions.append(editBtn, delBtn);
+        }
+
+        box.append(meta, el("h3", "", post.title), el("div", "content", post.content), actions);
+        document.getElementById("commentTitle").textContent = "댓글 " + post.commentCount;
+    }
+
+    function renderEditForm(post) {
+        const box = document.getElementById("detailBox");
+        box.innerHTML = "";
+        const title = el("input");
+        title.value = post.title;
+        title.maxLength = 40;
+        const content = el("textarea");
+        content.value = post.content;
+        content.maxLength = 1000;
+
+        const save = el("button", "primary", "저장");
+        save.onclick = async () => {
+            const data = await api("PATCH", "/api/community/posts/" + post.postId,
+                { title: title.value, content: content.value });
+            if (!data.isSuccess) { fail(data); return; }
+            renderDetail(data.result);
+            reloadFeed();
+        };
+        const cancel = el("button", "", "취소");
+        cancel.onclick = () => renderDetail(post);
+
+        const rowTitle = el("div", "row"); rowTitle.append(title);
+        const rowContent = el("div", "row"); rowContent.append(content);
+        const rowBtn = el("div", "row"); rowBtn.append(cancel, save);
+        box.append(el("div", "muted", "종목은 바꿀 수 없어요."), rowTitle, rowContent, rowBtn);
+    }
+
+    async function toggleLike(postId) {
+        if (!requireLogin("좋아요는")) return;
+        const data = await api("POST", "/api/community/posts/" + postId + "/likes");
+        if (!data.isSuccess) { fail(data); return; }
+        await refreshPost(postId);
+    }
+
+    async function deletePost(postId) {
+        if (!confirm("게시물을 삭제할까요?")) return;
+        const data = await api("DELETE", "/api/community/posts/" + postId);
+        if (!data.isSuccess) { fail(data); return; }
+        selectedPostId = null;
+        document.getElementById("detailPanel").hidden = true;
+        await loadBoard();
+        reloadFeed();
+    }
+
+    // ===== 댓글 =====
+    // 댓글은 보기도 로그인이 필요하다. 비로그인이면 목록 대신 안내를 보여준다. (댓글 수는 게시물에서 보인다)
+    async function reloadComments() {
+        commentCursor = null;
+        const list = document.getElementById("commentList");
+        list.innerHTML = "";
+        document.getElementById("moreCommentBtn").hidden = true;
+        document.querySelector(".comment-form").hidden = !getToken();
+        if (!getToken()) {
+            const guide = el("button", "pick-btn", "로그인하고 댓글 보기");
+            guide.onclick = () => requireLogin("댓글은");
+            list.append(guide);
+            return;
+        }
+        await loadMoreComments();
+    }
+
+    async function loadMoreComments() {
+        const params = new URLSearchParams({ size: "10" });
+        if (commentCursor) params.set("cursor", commentCursor);
+
+        const data = await api("GET", "/api/community/posts/" + selectedPostId + "/comments?" + params);
+        if (!data.isSuccess) { fail(data); return; }
+
+        const list = document.getElementById("commentList");
+        const { comments, hasNext } = data.result;
+        if (!comments.length && !list.children.length) {
+            list.append(el("div", "muted", "아직 댓글이 없습니다."));
+        }
+        comments.forEach(comment => list.append(renderComment(comment)));
+        commentCursor = data.result.nextCursor;
+        document.getElementById("moreCommentBtn").hidden = !hasNext;
+    }
+
+    function renderComment(comment) {
+        const item = el("div", "comment");
+
+        const meta = el("div", "meta");
+        meta.append(
+            el("span", "", comment.writerNickname),
+            el("span", "", relativeTime(comment.createdAt) + (comment.isEdited ? " (수정됨)" : "")),
+        );
+        if (comment.isMine) meta.append(el("span", "", "· 내 댓글"));
+
+        const likeBtn = el("button", comment.likedByMe ? "liked" : "", (comment.likedByMe ? "♥ " : "♡ ") + comment.likeCount);
+        likeBtn.onclick = () => toggleCommentLike(comment, item);
+
+        const actions = el("div", "actions");
+        actions.append(likeBtn);
+        if (comment.isMine) {
+            const editBtn = el("button", "", "수정");
+            editBtn.onclick = () => renderCommentEditForm(comment, item);
+            const delBtn = el("button", "danger", "삭제");
+            delBtn.onclick = () => deleteComment(comment.commentId);
+            actions.append(editBtn, delBtn);
+        }
+
+        item.append(meta, el("div", "body", comment.content), actions);
+        return item;
+    }
+
+    function renderCommentEditForm(comment, item) {
+        item.innerHTML = "";
+        const input = el("textarea");
+        input.value = comment.content;
+        input.maxLength = 500;
+
+        const save = el("button", "primary", "저장");
+        save.onclick = async () => {
+            const data = await api("PATCH", "/api/community/comments/" + comment.commentId, { content: input.value });
+            if (!data.isSuccess) { fail(data); return; }
+            item.replaceWith(renderComment(data.result));
+        };
+        const cancel = el("button", "", "취소");
+        cancel.onclick = () => item.replaceWith(renderComment(comment));
+
+        const row = el("div", "comment-form");
+        row.append(input, cancel, save);
+        item.append(row);
+    }
+
+    async function toggleCommentLike(comment, item) {
+        if (!requireLogin("좋아요는")) return;
+        const data = await api("POST", "/api/community/comments/" + comment.commentId + "/likes");
+        if (!data.isSuccess) { fail(data); return; }
+        item.replaceWith(renderComment({ ...comment, likedByMe: data.result.liked, likeCount: data.result.likeCount }));
+    }
+
+    async function deleteComment(commentId) {
+        if (!confirm("댓글을 삭제할까요?")) return;
+        const data = await api("DELETE", "/api/community/comments/" + commentId);
+        if (!data.isSuccess) { fail(data); return; }
+        await reloadComments();
+        await refreshPost(selectedPostId);
+    }
+
+    // 게시물과 같은 흐름: 닉네임이 없으면 팝업 → 저장 후 이어서 등록
+    function onClickComment() {
+        if (!requireLogin("댓글은")) return;
+        if (me && !me.nickname) {
+            openNicknameModal(submitComment);
+            return;
+        }
+        submitComment();
+    }
+
+    async function submitComment() {
+        const input = document.getElementById("commentInput");
+        const data = await api("POST", "/api/community/posts/" + selectedPostId + "/comments", { content: input.value });
+        if (!data.isSuccess) {
+            // 팝업을 우회해도 서버가 막는다 (COMMUNITY403_1)
+            if (data.code === "COMMUNITY403_1") { openNicknameModal(submitComment); return; }
+            fail(data);
+            return;
+        }
+        input.value = "";
+        await reloadComments();
+        await refreshPost(selectedPostId);
+    }
+
+    // ===== 글쓰기 =====
+    // 종목은 선택 사항이다. [종목 고르기]를 누르면 검색창이 열리고, 고르면 칩으로 바뀐다.
+    let writeStock = null;
+    attachStockPicker("writeStockSearch", "writeStockSuggestions", stock => setWriteStock(stock));
+
+    function setWriteStock(stock) {
+        writeStock = stock;
+        const chip = document.getElementById("writeStockChip");
+        const picker = document.getElementById("writeStockPicker");
+        chip.textContent = "";
+        picker.hidden = true;
+        if (stock) {
+            chip.className = "chip";
+            chip.append(stock.stockName + " ");
+            const x = el("button", "", "✕");
+            x.title = "선택 해제";
+            x.onclick = () => setWriteStock(null);
+            chip.append(x);
+        } else {
+            const btn = el("button", "pick-btn", "종목 고르기");
+            btn.onclick = () => {
+                chip.textContent = "";
+                picker.hidden = false;
+                document.getElementById("writeStockSearch").focus();
+            };
+            chip.className = "";
+            chip.append(btn);
+        }
+    }
+
+    function bindCounter(inputId, counterId) {
+        const input = document.getElementById(inputId);
+        const counter = document.getElementById(counterId);
+        // 서버(@Size)와 브라우저 maxlength가 세는 방식(UTF-16 길이)과 맞춘다.
+        const update = () => { counter.textContent = input.value.length + "/" + input.maxLength; };
+        input.addEventListener("input", update);
+        update();
+        return update;
+    }
+    const updateTitleCount = bindCounter("writeTitle", "titleCount");
+    const updateContentCount = bindCounter("writeContent", "contentCount");
+
+    // [글쓰기] 버튼: 비로그인이면 로그인 안내 팝업, 닉네임이 없으면 닉네임 팝업 → 저장 후 글쓰기 화면으로 이동
+    function onClickWrite() {
+        if (!requireLogin("글쓰기는")) return;
+        if (me && !me.nickname) {
+            openNicknameModal(openWritePage);
+            return;
+        }
+        openWritePage();
+    }
+
+    function openWritePage() {
+        // 목록에서 종목을 보고 있었다면 그 종목을 미리 골라 둔다. (바꾸거나 지울 수 있음)
+        if (!writeStock && filterStock) setWriteStock(filterStock);
+        cameFromList = true;
+        location.hash = "write";
+    }
+
+    function resetWriteForm() {
+        document.getElementById("writeTitle").value = "";
+        document.getElementById("writeContent").value = "";
+        updateTitleCount();
+        updateContentCount();
+        setWriteStock(null);
+    }
+
+    function cancelWrite() {
+        const title = document.getElementById("writeTitle").value;
+        const content = document.getElementById("writeContent").value;
+        if ((title || content) && !confirm("작성 중인 내용이 사라져요. 나갈까요?")) return;
+        resetWriteForm();
+        goList();
+    }
+
+    async function submitPost() {
+        const title = document.getElementById("writeTitle");
+        const content = document.getElementById("writeContent");
+        const data = await api("POST", "/api/community/posts",
+            { stockCode: writeStock ? writeStock.stockCode : null, title: title.value, content: content.value });
+        if (!data.isSuccess) {
+            // 팝업을 우회해도 서버가 막는다 (COMMUNITY403_1)
+            if (data.code === "COMMUNITY403_1") { openNicknameModal(submitPost); return; }
+            fail(data);
+            return;
+        }
+        resetWriteForm();
+        goList();
+        await loadBoard();
+        await reloadFeed();
+        openDetail(data.result.postId);
+    }
+
+    // ===== 시작 =====
+    (function init() {
+        let saved = "";
+        try { saved = localStorage.getItem(TOKEN_KEY) || ""; } catch (e) {}
+        document.getElementById("accessToken").value = saved;
+        document.getElementById("tokenStatus").textContent = saved ? "저장된 토큰 로드됨" : "비로그인";
+        setWriteStock(null);
+        route();
+        loadMe();
+        loadBoard();
+        reloadFeed();
+    })();
+</script>
+</body>
+</html>

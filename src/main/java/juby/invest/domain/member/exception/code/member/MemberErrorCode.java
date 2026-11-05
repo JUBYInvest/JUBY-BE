@@ -17,7 +17,10 @@ public enum MemberErrorCode implements BaseErrorCode {
             "투자유형 정보를 찾을 수 없습니다."),
     ALREADY_DELETED_MEMBER(HttpStatus.CONFLICT,
             "MEMBER409_1",
-            "이미 탈퇴한 회원입니다.");
+            "이미 탈퇴한 회원입니다."),
+    NICKNAME_DUPLICATED(HttpStatus.CONFLICT,
+            "MEMBER409_2",
+            "이미 사용 중인 닉네임입니다.");
 
     private final HttpStatus status;
     private final String code;

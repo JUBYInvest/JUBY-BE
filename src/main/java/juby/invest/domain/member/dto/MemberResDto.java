@@ -13,6 +13,7 @@ public class MemberResDto {
     @Builder
     public static class MemberInfo {
         private String name;
+        private String nickname; // null이면 닉네임 미설정 → 프론트가 작성 시점에 설정 팝업을 띄운다.
         private String email;
         private LocalDate birth;
         private SocialType socialType;
