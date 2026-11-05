@@ -1,5 +1,7 @@
 package juby.invest.domain.member.converter;
 
+import juby.invest.domain.kis.realtime.dto.RealtimePrice;
+import juby.invest.domain.kis.realtime.dto.RealtimeTick;
 import juby.invest.domain.member.dto.LikeStockListDto;
 import juby.invest.domain.member.entity.LikeStock;
 import juby.invest.domain.member.entity.Member;
@@ -8,6 +10,7 @@ import juby.invest.domain.stock.entity.Stock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 
@@ -29,7 +32,7 @@ class LikeStockConverterTest {
                 .stock(stock).date(LocalDate.of(2026, 9, 2)).closePrice(70300).build();
 
         LikeStockListDto.LikeStockList result = LikeStockConverter.convertToLikeStockList(
-                likeStock, Map.of("005930", basePrice), Map.of("005930", prevPrice));
+                likeStock, Map.of("005930", basePrice), Map.of("005930", prevPrice), Map.of());
 
         assertThat(result.closePrice()).isEqualTo(70800);
         assertThat(result.fluctuate()).isEqualTo(0.71);
@@ -40,7 +43,7 @@ class LikeStockConverterTest {
     @DisplayName("기준일에 일봉이 없으면(신규 상장 등) 가격 관련 필드를 모두 null로 반환한다")
     void returnsNullPriceFieldsWhenBasePriceMissing() {
         LikeStockListDto.LikeStockList result = LikeStockConverter.convertToLikeStockList(
-                likeStock, Map.of(), Map.of());
+                likeStock, Map.of(), Map.of(), Map.of());
 
         assertThat(result.stockCode()).isEqualTo("005930");
         assertThat(result.stockName()).isEqualTo("삼성전자");
@@ -57,10 +60,47 @@ class LikeStockConverterTest {
                 .stock(stock).date(LocalDate.of(2026, 9, 3)).closePrice(70000).tradingValue(500L).build();
 
         LikeStockListDto.LikeStockList result = LikeStockConverter.convertToLikeStockList(
-                likeStock, Map.of("005930", basePrice), Map.of());
+                likeStock, Map.of("005930", basePrice), Map.of(), Map.of());
 
         assertThat(result.closePrice()).isEqualTo(70000);
         assertThat(result.fluctuate()).isZero();
         assertThat(result.tradingValue()).isEqualTo(500L);
+    }
+
+    @Test
+    @DisplayName("실시간 체결가가 있으면 일봉 대신 현재가/전일대비율/누적거래대금을 쓴다")
+    void prefersRealtimePrice() {
+        DailyPrice basePrice = DailyPrice.builder()
+                .stock(stock).date(LocalDate.of(2026, 11, 3)).closePrice(70800).tradingValue(1_000_000L).build();
+        DailyPrice prevPrice = DailyPrice.builder()
+                .stock(stock).date(LocalDate.of(2026, 10, 30)).closePrice(70300).build();
+
+        RealtimePrice realtimePrice = new RealtimePrice(
+                new RealtimeTick("005930", "133000", 73100, -0.14,
+                        70000, 74000, 69000, 1234L, 3_000_000_000_000L),
+                Instant.parse("2026-11-03T04:30:00Z"));
+
+        LikeStockListDto.LikeStockList result = LikeStockConverter.convertToLikeStockList(
+                likeStock, Map.of("005930", basePrice), Map.of("005930", prevPrice),
+                Map.of("005930", realtimePrice));
+
+        assertThat(result.closePrice()).isEqualTo(73100);
+        assertThat(result.fluctuate()).isEqualTo(-0.14);
+        assertThat(result.tradingValue()).isEqualTo(3_000_000_000_000L);
+        assertThat(result.realtime()).isTrue();
+        assertThat(result.likedAt()).isEqualTo(likeStock.getLikedAt());
+    }
+
+    @Test
+    @DisplayName("실시간 값이 없는 종목은 일봉으로 내려가고 realtime 플래그가 꺼진다")
+    void marksFallbackItems() {
+        DailyPrice basePrice = DailyPrice.builder()
+                .stock(stock).date(LocalDate.of(2026, 11, 3)).closePrice(70800).tradingValue(1_000_000L).build();
+
+        LikeStockListDto.LikeStockList result = LikeStockConverter.convertToLikeStockList(
+                likeStock, Map.of("005930", basePrice), Map.of(), Map.of());
+
+        assertThat(result.closePrice()).isEqualTo(70800);
+        assertThat(result.realtime()).isFalse();
     }
 }

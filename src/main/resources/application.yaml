@@ -75,6 +75,32 @@ kis:
     app-key: ${KIS_REAL_APP_KEY}
     app-secret: ${KIS_REAL_APP_SECRET}
 
+  # 실시간(웹소켓) 시세 세션용 자격증명 (이슈 #113)
+  # appkey 1개당 세션 1개, 세션 1개당 실시간 등록 41건이 상한이라 100종목을 덮으려면 세션 3개가 필요하다.
+  # rest-base-url은 접속키(approval_key) 발급용이고, 위 base-url을 참조해 중복을 만들지 않는다.
+  # mock-2의 키에 빈 기본값을 둔 이유: 기본값 없이 새 필수 변수를 넣으면 기존 .env를 쓰는 환경이 전부 기동에 실패한다.
+  # 값이 비어 있는지는 세션을 실제로 띄우는 시점에 검사한다.
+  ws:
+    credentials:
+      - name: real
+        app-key: ${KIS_REAL_APP_KEY}
+        app-secret: ${KIS_REAL_APP_SECRET}
+        rest-base-url: ${kis.real.base-url}
+        ws-url: "ws://ops.koreainvestment.com:21000"
+        real-domain: true
+      - name: mock-1
+        app-key: ${KIS_MOCK_APP_KEY}
+        app-secret: ${KIS_MOCK_APP_SECRET}
+        rest-base-url: ${kis.mock.base-url}
+        ws-url: "ws://ops.koreainvestment.com:31000"
+        real-domain: false
+      - name: mock-2
+        app-key: ${KIS_MOCK2_APP_KEY:}
+        app-secret: ${KIS_MOCK2_APP_SECRET:}
+        rest-base-url: ${kis.mock.base-url}
+        ws-url: "ws://ops.koreainvestment.com:31000"
+        real-domain: false
+
 naver:
   news:
     base-url: "https://openapi.naver.com/v1/search/news.json"

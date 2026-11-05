@@ -30,6 +30,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -73,7 +74,7 @@ class StockControllerTest {
     }
 
     private StockListDto.StockListRes emptyResult() {
-        return StockListDto.StockListRes.of(LocalDate.of(2026, 8, 31), List.of());
+        return StockListDto.StockListRes.of(LocalDate.of(2026, 8, 31), LocalDateTime.of(2026, 8, 31, 16, 0), List.of());
     }
 
     @Nested
