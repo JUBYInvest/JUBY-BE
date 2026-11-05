@@ -40,8 +40,13 @@ public class SecurityConfig {
     private final JwtUtil jwtUtil;
     private final AuthService authService;
 
-    // 허용 url
-    private final String[] allowUris = {
+    /***
+     * 인증 없이 열리는 url.
+     * <p>
+     * 공개 시장 데이터(주가/지수/실시간 스트림)는 로그인과 무관하게 보여야 하므로 여기에 둔다.
+     * 이 목록을 좁힐 때는 SecurityConfigAllowUriTest가 지키는 경로를 함께 확인해야 한다.
+     */
+    static final String[] allowUris = {
             "/",
             "/swagger-ui/**",
             "/v3/api-docs/**",
@@ -50,6 +55,10 @@ public class SecurityConfig {
             "/openai-test.html", // openai 챗봇 테스트용
             "/backtest-test.html", // 백테스트 프리셋 결과 조회 테스트용
             "/api/stocks/**", // 메인 페이지 (주가), 상세 페이지 (종목 데이터, 뉴스 정보)
+            "/api/market-indices", // 홈 화면 코스피/코스닥 지수
+            // 실시간 시세 SSE 스트림. 브라우저 EventSource는 커스텀 헤더를 보낼 수 없어
+            // Authorization 헤더로 인증할 방법이 아예 없다. 공개 시세라 인증 없이 연다.
+            "/api/stream/**",
             "/api/auth/reissue" // AT 재발급
     };
 
