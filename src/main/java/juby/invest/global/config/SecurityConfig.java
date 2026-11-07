@@ -61,6 +61,12 @@ public class SecurityConfig {
             // 실시간 시세 SSE 스트림. 브라우저 EventSource는 커스텀 헤더를 보낼 수 없어
             // Authorization 헤더로 인증할 방법이 아예 없다. 공개 시세라 인증 없이 연다.
             "/api/stream/**",
+            // 홈 화면 실시간 채팅. 이전 대화는 비로그인도 볼 수 있다.
+            "/api/live-chat/messages",
+            // 채팅 웹소켓 핸드셰이크. 브라우저 WebSocket도 헤더를 보낼 수 없어, 인증은 STOMP CONNECT 프레임에서
+            // LiveChatChannelInterceptor가 한다. 비로그인은 읽기만, 전송은 회원만 가능하다.
+            "/ws/**",
+            "/live-chat-test.html", // 실시간 채팅 테스트용
             "/api/auth/reissue" // AT 재발급
     };
 
