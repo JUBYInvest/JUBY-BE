@@ -40,7 +40,9 @@ class SecurityConfigAllowUriTest {
             "/api/stocks/005930",           // 종목 상세
             "/api/market-indices",          // 코스피/코스닥 지수
             "/api/stream/prices",           // 전 종목 실시간 스트림
-            "/api/stream/prices/005930"     // 종목 1건 실시간 스트림
+            "/api/stream/prices/005930",    // 종목 1건 실시간 스트림
+            "/api/live-chat/messages",      // 홈 실시간 채팅 이전 대화 (비로그인 열람)
+            "/ws/live-chat"                 // 채팅 웹소켓 핸드셰이크 (인증은 STOMP CONNECT에서)
     })
     void allowsPublicMarketDataUris(String uri) {
         assertThat(isAllowed(uri))
